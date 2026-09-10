@@ -1,0 +1,170 @@
+name: SafeFoto Family red baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safefoto-family-red-baseline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  red-baseline:
+    name: Confirm SF-FAM-007..010 expected failures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      IMMICH_UPSTREAM_COMMIT: f77c8a4699aec043ec4a1b404559a7a291d592dc
+      CI: 'true'
+      NO_COLOR: '1'
+      FORCE_COLOR: '0'
+
+    steps:
+      - name: Check out test branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact Immich baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git cat-file -e "${IMMICH_UPSTREAM_COMMIT}^{commit}"
+          git merge-base --is-ancestor "${IMMICH_UPSTREAM_COMMIT}" HEAD
+
+          unexpected_files="$({
+            git diff --name-only "${IMMICH_UPSTREAM_COMMIT}" HEAD
+          } | grep -Ev '^(\.github/workflows/safefoto-family-red-baseline.yml|server/src/services/safefoto-family-stage0.red.spec.ts|server/test/medium/specs/safefoto-family-stage0.red.spec.ts)$' || true)"
+
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Refusing to run: non-test files differ from Immich 3.0.1:" >&2
+            echo "${unexpected_files}" >&2
+            exit 1
+          fi
+
+          sha256sum --check <<'EOF'
+          40b77007fc6caa9aa8508e0532b4b85953b8b91396e55e044504f14a6436e571  server/src/services/safefoto-family-stage0.red.spec.ts
+          5e3510ec56c8fe924a35aa3b8af4a32fd53211c8a748417cee6561a2274bbfc1  server/test/medium/specs/safefoto-family-stage0.red.spec.ts
+          EOF
+
+      - name: Set up pnpm 11.6.0
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+          run_install: false
+
+      - name: Set up Node.js 24.15.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build local SDK dependencies
+        run: |
+          pnpm --filter @immich/sdk build
+          pnpm --filter @immich/plugin-sdk build
+
+      - name: Confirm Docker for Testcontainers
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker version
+          docker info
+
+      - name: Run and validate expected red baseline
+        id: baseline
+        working-directory: server
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          pnpm exec vitest \
+            --config test/vitest.config.medium.mjs \
+            run test/medium/specs/safefoto-family-stage0.red.spec.ts \
+            --reporter=verbose 2>&1 | tee ../safefoto-family-red-baseline.log
+          vitest_status=${PIPESTATUS[0]}
+
+          set -e
+          VITEST_STATUS="${vitest_status}" python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          log_path = Path('../safefoto-family-red-baseline.log')
+          if not log_path.is_file():
+              raise SystemExit('BLOCKED: Vitest log was not created')
+
+          text = log_path.read_text(encoding='utf-8', errors='replace')
+          text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+
+          infrastructure_failures = (
+              'Could not find a working container runtime strategy',
+              'No test files found',
+              'Unhandled Error',
+              'ECONNREFUSED',
+              'globalSetup',
+          )
+          found_infrastructure_failures = [item for item in infrastructure_failures if item in text]
+          if found_infrastructure_failures:
+              raise SystemExit(
+                  'BLOCKED: infrastructure/setup failure: ' + ', '.join(found_infrastructure_failures)
+              )
+
+          if int(os.environ['VITEST_STATUS']) == 0:
+              raise SystemExit('BLOCKED: upstream unexpectedly passed the household isolation tests')
+
+          test_ids = ('SF-FAM-007', 'SF-FAM-008', 'SF-FAM-009', 'SF-FAM-010')
+          for index, test_id in enumerate(test_ids):
+              next_test = test_ids[index + 1] if index + 1 < len(test_ids) else None
+              start_match = re.search(rf'^\s*FAIL\s+.*{test_id}[^\n]*$', text, re.MULTILINE)
+              if not start_match:
+                  raise SystemExit(f'BLOCKED: {test_id} was not collected and reported as FAIL')
+
+              section_end = len(text)
+              if next_test:
+                  next_match = re.search(rf'^\s*FAIL\s+.*{next_test}[^\n]*$', text[start_match.end():], re.MULTILINE)
+                  if next_match:
+                      section_end = start_match.end() + next_match.start()
+
+              section = text[start_match.start():section_end]
+              if 'AssertionError:' not in section:
+                  raise SystemExit(f'BLOCKED: {test_id} failed for a reason other than its isolation assertion')
+
+          if not re.search(r'Tests\s+4 failed \(4\)', text):
+              raise SystemExit('BLOCKED: expected exactly four failed tests')
+          if not re.search(r'Test Files\s+1 failed \(1\)', text):
+              raise SystemExit('BLOCKED: expected exactly one failed test file')
+
+          print('SF-FAM-007: FAIL - household isolation assertion')
+          print('SF-FAM-008: FAIL - household isolation assertion')
+          print('SF-FAM-009: FAIL - household isolation assertion')
+          print('SF-FAM-010: FAIL - household isolation assertion')
+          print('RED BASELINE CONFIRMED')
+          PY
+
+          {
+            echo '## SafeFoto Family — upstream 3.0.1'
+            echo
+            echo '- SF-FAM-007: expected FAIL confirmed'
+            echo '- SF-FAM-008: expected FAIL confirmed'
+            echo '- SF-FAM-009: expected FAIL confirmed'
+            echo '- SF-FAM-010: expected FAIL confirmed'
+            echo
+            echo '**RED BASELINE CONFIRMED**'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Preserve complete baseline log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safefoto-family-red-baseline-${{ github.run_id }}
+          path: safefoto-family-red-baseline.log
+          if-no-files-found: warn
+          retention-days: 14
