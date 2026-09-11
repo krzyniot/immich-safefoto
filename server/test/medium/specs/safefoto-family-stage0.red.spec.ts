@@ -21,7 +21,7 @@ describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
     const ctx = new SyncTestContext(database);
     const { auth: a1Auth, user: a1 } = await ctx.newSyncAuthUser();
     const { user: a2 } = await ctx.newUser({ name: 'Household A Adult', email: 'a2@example.invalid' });
-    const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1@example.invalid' });
+    const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1-007@example.invalid' });
     const { user: b2 } = await ctx.newUser({ name: 'Household B Adult', email: 'b2@example.invalid' });
 
     const response = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
@@ -36,7 +36,7 @@ describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
   it('SF-FAM-008: UsersV1 deletes must not enumerate a deleted Household B user to A1', async () => {
     const ctx = new SyncTestContext(database);
     const { auth: a1Auth } = await ctx.newSyncAuthUser();
-    const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1@example.invalid' });
+    const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1-008@example.invalid' });
 
     const initial = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
     await ctx.syncAckAll(a1Auth, initial);
@@ -53,7 +53,7 @@ describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
   it('SF-FAM-009: a stale cross-household album_user must not grant album read/sync', async () => {
     const ctx = new SyncTestContext(database);
     const { auth: b1Auth, user: b1 } = await ctx.newSyncAuthUser();
-    const { user: a1 } = await ctx.newUser({ name: 'Household A Owner', email: 'a1@example.invalid' });
+    const { user: a1 } = await ctx.newUser({ name: 'Household A Owner', email: 'a1-009@example.invalid' });
     const { album } = await ctx.newAlbum({ ownerId: a1.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: b1.id, role: AlbumUserRole.Viewer });
 
@@ -68,7 +68,7 @@ describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
   it('SF-FAM-010: a stale cross-household album_user must not grant asset sync', async () => {
     const ctx = new SyncTestContext(database);
     const { auth: b1Auth, user: b1 } = await ctx.newSyncAuthUser();
-    const { user: a1 } = await ctx.newUser({ name: 'Household A Owner', email: 'a1@example.invalid' });
+    const { user: a1 } = await ctx.newUser({ name: 'Household A Owner', email: 'a1-010@example.invalid' });
     const { asset } = await ctx.newAsset({ ownerId: a1.id });
     const { album } = await ctx.newAlbum({ ownerId: a1.id }, [asset.id]);
     await ctx.newAlbumUser({ albumId: album.id, userId: b1.id, role: AlbumUserRole.Viewer });

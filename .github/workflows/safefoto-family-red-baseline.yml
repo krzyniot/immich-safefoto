@@ -48,7 +48,7 @@ jobs:
 
           sha256sum --check <<'EOF'
           40b77007fc6caa9aa8508e0532b4b85953b8b91396e55e044504f14a6436e571  server/src/services/safefoto-family-stage0.red.spec.ts
-          5e3510ec56c8fe924a35aa3b8af4a32fd53211c8a748417cee6561a2274bbfc1  server/test/medium/specs/safefoto-family-stage0.red.spec.ts
+          587cd6eadbc8122b5c945887d1ab7a89718d697b47bbeaf66b0a3b1c051ceab7  server/test/medium/specs/safefoto-family-stage0.red.spec.ts
           EOF
 
       - name: Set up pnpm 11.6.0
