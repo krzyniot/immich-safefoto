@@ -17,6 +17,7 @@ export class UserFactory {
   static from(dto: UserLike = {}) {
     return new UserFactory({
       id: newUuid(),
+      householdId: newUuid(),
       email: 'test@immich.cloud',
       password: '',
       pinCode: null,

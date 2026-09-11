@@ -31,6 +31,8 @@ export interface UserFindOptions {
   withDeleted?: boolean;
 }
 
+export type UserCreate = Omit<Insertable<UserTable>, 'householdId'>;
+
 const withMetadata = (eb: ExpressionBuilder<DB, 'user'>) => {
   return jsonArrayFrom(
     eb
@@ -171,13 +173,17 @@ export class UserRepository {
       .execute();
   }
 
-  async create(dto: Insertable<UserTable>) {
-    return this.db
-      .insertInto('user')
-      .values(dto)
-      .returning(columns.userAdmin)
-      .returning(withMetadata)
-      .executeTakeFirstOrThrow();
+  async create(dto: UserCreate) {
+    return this.db.transaction().execute(async (tx) => {
+      const household = await tx.insertInto('household').values({}).returning('id').executeTakeFirstOrThrow();
+
+      return tx
+        .insertInto('user')
+        .values({ ...dto, householdId: household.id })
+        .returning(columns.userAdmin)
+        .returning(withMetadata)
+        .executeTakeFirstOrThrow();
+    });
   }
 
   update(id: string, dto: Updateable<UserTable>) {

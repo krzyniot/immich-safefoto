@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Insertable } from 'kysely';
 import sanitize from 'sanitize-filename';
 import { SystemConfig } from 'src/config';
 import { SALT_ROUNDS } from 'src/constants';
@@ -52,13 +51,12 @@ import { SystemMetadataRepository } from 'src/repositories/system-metadata.repos
 import { TagRepository } from 'src/repositories/tag.repository';
 import { TelemetryRepository } from 'src/repositories/telemetry.repository';
 import { TrashRepository } from 'src/repositories/trash.repository';
-import { UserRepository } from 'src/repositories/user.repository';
+import { UserCreate, UserRepository } from 'src/repositories/user.repository';
 import { VersionHistoryRepository } from 'src/repositories/version-history.repository';
 import { VideoStreamRepository } from 'src/repositories/video-stream.repository';
 import { ViewRepository } from 'src/repositories/view-repository';
 import { WebsocketRepository } from 'src/repositories/websocket.repository';
 import { WorkflowRepository } from 'src/repositories/workflow.repository';
-import { UserTable } from 'src/schema/tables/user.table';
 import { ClassConstructor } from 'src/types';
 import { AccessRequest, checkAccess, requireAccess } from 'src/utils/access';
 import { getConfig, updateConfig } from 'src/utils/config';
@@ -280,7 +278,7 @@ export class BaseService {
     return checkAccess(this.accessRepository, request);
   }
 
-  async createUser(dto: Insertable<UserTable> & { email: string }): Promise<UserAdmin> {
+  async createUser(dto: UserCreate & { email: string }): Promise<UserAdmin> {
     const exists = await this.userRepository.getByEmail(dto.email);
     if (exists) {
       this.logger.debug('User creation rejected: user already exists');
@@ -294,7 +292,7 @@ export class BaseService {
       }
     }
 
-    const payload: Insertable<UserTable> = { ...dto };
+    const payload: UserCreate = { ...dto };
     if (payload.password) {
       payload.password = await this.cryptoRepository.hashBcrypt(payload.password, SALT_ROUNDS);
     }

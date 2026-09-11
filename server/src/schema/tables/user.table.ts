@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
+  ForeignKeyColumn,
   Generated,
   Index,
   PrimaryGeneratedColumn,
@@ -14,6 +15,7 @@ import { ColumnType } from 'kysely';
 import { UpdatedAtTrigger, UpdateIdColumn } from 'src/decorators';
 import { UserAvatarColor, UserStatus } from 'src/enum';
 import { user_delete_audit } from 'src/schema/functions';
+import { HouseholdTable } from 'src/schema/tables/household.table';
 
 @Table('user')
 @UpdatedAtTrigger('user_updatedAt')
@@ -27,6 +29,13 @@ import { user_delete_audit } from 'src/schema/functions';
 export class UserTable {
   @PrimaryGeneratedColumn()
   id!: Generated<string>;
+
+  @ForeignKeyColumn(() => HouseholdTable, {
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE',
+    index: true,
+  })
+  householdId!: string;
 
   @Column({ unique: true })
   email!: string;
