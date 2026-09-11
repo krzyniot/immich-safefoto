@@ -39,6 +39,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
 
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({
       originalFileName,
       ownerId: user2.id,
@@ -116,6 +117,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should not sync album asset for unrelated user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { user: user3 } = await ctx.newUser();
     const { asset } = await ctx.newAsset({ ownerId: user3.id });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
@@ -134,6 +136,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should backfill album assets when a user shares an album with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { album: album1 } = await ctx.newAlbum({ ownerId: user2.id });
     const { album: album2 } = await ctx.newAlbum({ ownerId: user2.id });
     const { asset: asset1User2 } = await ctx.newAsset({ ownerId: user2.id });
@@ -203,6 +206,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should sync old assets when a user adds them to an album they share you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset: firstAsset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'firstAsset' });
     const { asset: secondAsset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'secondAsset' });
     const { asset: album1Asset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'album1Asset' });
@@ -270,6 +274,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should sync asset updates for an album shared with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'before' });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await wait(2);
@@ -306,6 +311,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should hide isFavorite for album assets owned by another user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id, isFavorite: true });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });
@@ -326,6 +332,7 @@ describe(SyncRequestType.AlbumAssetsV2, () => {
   it('should sync isFavorite for album assets owned by the requesting user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: auth.user.id, isFavorite: true });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });

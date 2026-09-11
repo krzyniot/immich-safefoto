@@ -322,6 +322,15 @@ export class SyncTestContext extends MediumTestContext<SyncService> {
     return stream.getResponse();
   }
 
+  async moveUserToHouseholdOf(userId: string, householdMemberId: string) {
+    const { householdId } = await this.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', householdMemberId)
+      .executeTakeFirstOrThrow();
+    await this.database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+  }
+
   async assertSyncIsComplete(auth: AuthDto, types: SyncRequestType[]) {
     await expect(this.syncStream(auth, types)).resolves.toEqual([
       expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 }),

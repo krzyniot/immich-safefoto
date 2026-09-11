@@ -3,6 +3,7 @@ import { Kysely, sql } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { columns } from 'src/database';
 import { DummyValue, GenerateSql } from 'src/decorators';
+import { AlbumUserRole } from 'src/enum';
 import { DB } from 'src/schema';
 import { SyncAck } from 'src/types';
 
@@ -98,6 +99,51 @@ export class SyncRepository {
 export class BaseSync {
   constructor(protected db: Kysely<DB>) {}
 
+  protected householdUserIds(userId: string) {
+    return this.db
+      .selectFrom('user as household_user')
+      .select('household_user.id')
+      .where('household_user.householdId', '=', (eb) =>
+        eb.selectFrom('user as requester').select('requester.householdId').where('requester.id', '=', userId),
+      );
+  }
+
+  protected householdDeletedUserIds(userId: string) {
+    return this.db
+      .selectFrom('user_audit as household_user_audit')
+      .select('household_user_audit.userId')
+      .where('household_user_audit.householdId', '=', (eb) =>
+        eb.selectFrom('user as requester').select('requester.householdId').where('requester.id', '=', userId),
+      );
+  }
+
+  protected householdAlbumIds(userId: string) {
+    return this.db
+      .selectFrom('album_user as requester_album')
+      .innerJoin('album_user as owner_album', (join) =>
+        join
+          .onRef('owner_album.albumId', '=', 'requester_album.albumId')
+          .on('owner_album.role', '=', AlbumUserRole.Owner),
+      )
+      .select('requester_album.albumId')
+      .where('requester_album.userId', '=', userId)
+      .where('owner_album.userId', 'in', this.householdUserIds(userId));
+  }
+
+  protected householdAssetIds(userId: string) {
+    return this.db
+      .selectFrom('asset as household_asset')
+      .select('household_asset.id')
+      .where('household_asset.ownerId', 'in', this.householdUserIds(userId));
+  }
+
+  protected householdDeletedAssetIds(userId: string) {
+    return this.db
+      .selectFrom('asset_audit as household_asset_audit')
+      .select('household_asset_audit.assetId')
+      .where('household_asset_audit.ownerId', 'in', this.householdUserIds(userId));
+  }
+
   protected backfillQuery<T extends keyof DB>(t: T, { nowId, beforeUpdateId, afterUpdateId }: SyncBackfillOptions) {
     const { table, ref } = this.db.dynamic;
     const updateIdRef = ref(`${t}.updateId`);
@@ -149,6 +195,7 @@ class AlbumSync extends BaseSync {
       .selectFrom('album_user')
       .select(['albumId as id', 'createId'])
       .where('userId', '=', userId)
+      .where('albumId', 'in', this.householdAlbumIds(userId))
       .$if(!!afterCreateId, (qb) => qb.where('createId', '>=', afterCreateId!))
       .where('createId', '<', nowId)
       .orderBy('createId', 'asc')
@@ -174,23 +221,38 @@ class AlbumSync extends BaseSync {
       .distinctOn(['album.id', 'album.updateId'])
       .leftJoin('album_user as album_users', 'album.id', 'album_users.albumId')
       .where('album_users.userId', '=', userId)
+      .where('album.id', 'in', this.householdAlbumIds(userId))
       .select([
         'album.id',
         'album.albumName as name',
         'album.description',
         'album.createdAt',
         'album.updatedAt',
-        'album.albumThumbnailAssetId as thumbnailAssetId',
         'album.isActivityEnabled',
         'album.order',
         'album.updateId',
       ])
+      .select((eb) =>
+        eb
+          .case()
+          .when('album.albumThumbnailAssetId', 'in', this.householdAssetIds(userId))
+          .then(eb.ref('album.albumThumbnailAssetId'))
+          .else(null)
+          .end()
+          .as('thumbnailAssetId'),
+      )
       .stream();
   }
 
-  @GenerateSql({ params: [DummyValue.UUID] })
-  async getAlbumUsers(albumId: string) {
-    return this.db.selectFrom('album_user').select(['userId', 'role']).where('albumId', '=', albumId).execute();
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID] })
+  async getAlbumUsers(albumId: string, userId: string) {
+    return this.db
+      .selectFrom('album_user')
+      .select(['userId', 'role'])
+      .where('albumId', '=', albumId)
+      .where('albumId', 'in', this.householdAlbumIds(userId))
+      .where('userId', 'in', this.householdUserIds(userId))
+      .execute();
   }
 }
 
@@ -211,6 +273,8 @@ class AlbumAssetSync extends BaseSync {
       )
       .select('album_asset.updateId')
       .where('album_asset.albumId', '=', albumId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 
@@ -233,6 +297,8 @@ class AlbumAssetSync extends BaseSync {
       .where('album_asset.updateId', '<=', albumToAssetAck.updateId) // Ensure we only send updates for assets that the client already knows about
       .innerJoin('album_user', 'album_user.albumId', 'album_asset.albumId')
       .where('album_user.userId', '=', userId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 
@@ -254,18 +320,22 @@ class AlbumAssetSync extends BaseSync {
       )
       .innerJoin('album_user', 'album_user.albumId', 'album_asset.albumId')
       .where('album_user.userId', '=', userId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 }
 
 class AlbumAssetExifSync extends BaseSync {
-  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID], stream: true })
-  getBackfill(options: SyncBackfillOptions, albumId: string) {
+  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID, DummyValue.UUID], stream: true })
+  getBackfill(options: SyncBackfillOptions, albumId: string, userId: string) {
     return this.backfillQuery('album_asset', options)
       .innerJoin('asset_exif', 'asset_exif.assetId', 'album_asset.assetId')
       .select(columns.syncAssetExif)
       .select('album_asset.updateId')
       .where('album_asset.albumId', '=', albumId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 
@@ -279,6 +349,8 @@ class AlbumAssetExifSync extends BaseSync {
       .where('album_asset.updateId', '<=', albumToAssetAck.updateId) // Ensure we only send exif updates for assets that the client already knows about
       .innerJoin('album_user', 'album_user.albumId', 'album_asset.albumId')
       .where('album_user.userId', '=', userId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 
@@ -292,16 +364,20 @@ class AlbumAssetExifSync extends BaseSync {
       .innerJoin('album', 'album.id', 'album_asset.albumId')
       .leftJoin('album_user', 'album_user.albumId', 'album_asset.albumId')
       .where('album_user.userId', '=', userId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 }
 
 class AlbumToAssetSync extends BaseSync {
-  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID], stream: true })
-  getBackfill(options: SyncBackfillOptions, albumId: string) {
+  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID, DummyValue.UUID], stream: true })
+  getBackfill(options: SyncBackfillOptions, albumId: string, userId: string) {
     return this.backfillQuery('album_asset', options)
       .select(['album_asset.assetId as assetId', 'album_asset.albumId as albumId', 'album_asset.updateId'])
       .where('album_asset.albumId', '=', albumId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 
@@ -310,12 +386,12 @@ class AlbumToAssetSync extends BaseSync {
     const userId = options.userId;
     return this.auditQuery('album_asset_audit', options)
       .select(['id', 'assetId', 'albumId'])
+      .where('albumId', 'in', this.householdAlbumIds(userId))
       .where((eb) =>
-        eb(
-          'albumId',
-          'in',
-          eb.selectFrom('album_user').select(['album_user.albumId as id']).where('album_user.userId', '=', userId),
-        ),
+        eb.or([
+          eb('assetId', 'in', this.householdAssetIds(userId)),
+          eb('assetId', 'in', this.householdDeletedAssetIds(userId)),
+        ]),
       )
       .stream();
   }
@@ -331,17 +407,21 @@ class AlbumToAssetSync extends BaseSync {
       .select(['album_asset.assetId as assetId', 'album_asset.albumId as albumId', 'album_asset.updateId'])
       .innerJoin('album_user', 'album_user.albumId', 'album_asset.albumId')
       .where('album_user.userId', '=', userId)
+      .where('album_asset.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_asset.assetId', 'in', this.householdAssetIds(userId))
       .stream();
   }
 }
 
 class AlbumUserSync extends BaseSync {
-  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID], stream: true })
-  getBackfill(options: SyncBackfillOptions, albumId: string) {
+  @GenerateSql({ params: [dummyBackfillOptions, DummyValue.UUID, DummyValue.UUID], stream: true })
+  getBackfill(options: SyncBackfillOptions, albumId: string, userId: string) {
     return this.backfillQuery('album_user', options)
       .select(columns.syncAlbumUser)
       .select('album_user.updateId')
       .where('albumId', '=', albumId)
+      .where('albumId', 'in', this.householdAlbumIds(userId))
+      .where('userId', 'in', this.householdUserIds(userId))
       .stream();
   }
 
@@ -350,12 +430,12 @@ class AlbumUserSync extends BaseSync {
     const userId = options.userId;
     return this.auditQuery('album_user_audit', options)
       .select(['id', 'userId', 'albumId'])
+      .where('albumId', 'in', this.householdAlbumIds(userId))
       .where((eb) =>
-        eb(
-          'albumId',
-          'in',
-          eb.selectFrom('album_user').select(['album_user.albumId as id']).where('album_user.userId', '=', userId),
-        ),
+        eb.or([
+          eb('userId', 'in', this.householdUserIds(userId)),
+          eb('userId', 'in', this.householdDeletedUserIds(userId)),
+        ]),
       )
       .stream();
   }
@@ -370,16 +450,8 @@ class AlbumUserSync extends BaseSync {
     return this.upsertQuery('album_user', options)
       .select(columns.syncAlbumUser)
       .select('album_user.updateId')
-      .where((eb) =>
-        eb(
-          'album_user.albumId',
-          'in',
-          eb
-            .selectFrom('album_user as albumUsers')
-            .select(['albumUsers.albumId as id'])
-            .where('albumUsers.userId', '=', userId),
-        ),
-      )
+      .where('album_user.albumId', 'in', this.householdAlbumIds(userId))
+      .where('album_user.userId', 'in', this.householdUserIds(userId))
       .stream();
   }
 }

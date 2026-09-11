@@ -436,7 +436,7 @@ export class SyncService extends BaseService {
     const upsertType = SyncEntityType.AlbumV1;
     const upserts = this.syncRepository.album.getUpserts({ ...options, ack: checkpointMap[upsertType] });
     for await (const { updateId, ...data } of upserts) {
-      const albumUsers = await this.syncRepository.album.getAlbumUsers(data.id);
+      const albumUsers = await this.syncRepository.album.getAlbumUsers(data.id, options.userId);
       send(response, { type: upsertType, ids: [updateId], data: syncAlbumV2ToV1(data, albumUsers) });
     }
   }
@@ -488,6 +488,7 @@ export class SyncService extends BaseService {
         const backfill = this.syncRepository.albumUser.getBackfill(
           { ...options, afterUpdateId: startId, beforeUpdateId: endId },
           album.id,
+          options.userId,
         );
 
         for await (const { updateId, ...data } of backfill) {
@@ -617,6 +618,7 @@ export class SyncService extends BaseService {
         const backfill = this.syncRepository.albumAssetExif.getBackfill(
           { ...options, afterUpdateId: startId, beforeUpdateId: endId },
           album.id,
+          options.userId,
         );
 
         for await (const { updateId, ...data } of backfill) {
@@ -692,6 +694,7 @@ export class SyncService extends BaseService {
         const backfill = this.syncRepository.albumToAsset.getBackfill(
           { ...options, afterUpdateId: startId, beforeUpdateId: endId },
           album.id,
+          options.userId,
         );
 
         for await (const { updateId, ...data } of backfill) {

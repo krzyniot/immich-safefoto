@@ -22,6 +22,7 @@ describe(SyncRequestType.AlbumToAssetsV1, () => {
   it('should detect and sync the first album to asset relation', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });
@@ -70,6 +71,7 @@ describe(SyncRequestType.AlbumToAssetsV1, () => {
   it('should detect and sync the album to asset for shared albums', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: auth.user.id });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });
@@ -95,6 +97,7 @@ describe(SyncRequestType.AlbumToAssetsV1, () => {
   it('should not sync album to asset for an album owned by another user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });
@@ -104,6 +107,7 @@ describe(SyncRequestType.AlbumToAssetsV1, () => {
   it('should backfill album to assets when a user shares an album with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset: album1Asset } = await ctx.newAsset({ ownerId: user2.id });
     const { asset: album2Asset } = await ctx.newAsset({ ownerId: auth.user.id });
     // Backfill album
@@ -158,6 +162,7 @@ describe(SyncRequestType.AlbumToAssetsV1, () => {
   it('should not resend an already-acked item when backfill resumes', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
 
     // backfill needs assets with an older updateId
     const { asset: sharedAsset1 } = await ctx.newAsset({ ownerId: user2.id });

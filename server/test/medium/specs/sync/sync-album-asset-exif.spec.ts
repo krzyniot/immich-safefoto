@@ -35,6 +35,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should detect and sync the first album asset exif', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newExif({ assetId: asset.id, make: 'Canon' });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
@@ -103,6 +104,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should not sync album asset exif for unrelated user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { user: user3 } = await ctx.newUser();
     const { asset } = await ctx.newAsset({ ownerId: user3.id });
     await ctx.newExif({ assetId: asset.id, make: 'Canon' });
@@ -122,6 +124,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should backfill album assets exif when a user shares an album with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { album: album1 } = await ctx.newAlbum({ ownerId: user2.id });
     const { album: album2 } = await ctx.newAlbum({ ownerId: user2.id });
     const { asset: asset1User2 } = await ctx.newAsset({ ownerId: user2.id });
@@ -195,6 +198,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should sync old asset exif when a user adds them to an album they share you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset: firstAsset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'firstAsset' });
     await ctx.newExif({ assetId: firstAsset.id, make: 'firstAsset' });
     const { asset: secondAsset } = await ctx.newAsset({ ownerId: user2.id, originalFileName: 'secondAsset' });
@@ -265,6 +269,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should sync asset exif updates for an album shared with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newExif({ assetId: asset.id, make: 'asset' });
     const { album } = await ctx.newAlbum({ ownerId: user2.id });
@@ -313,6 +318,7 @@ describe(SyncRequestType.AlbumAssetExifsV1, () => {
   it('should sync delayed asset exif creates for an album shared with you', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     const { asset: assetWithExif } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newExif({ assetId: assetWithExif.id, make: 'assetWithExif' });
     const { asset: assetDelayedExif } = await ctx.newAsset({ ownerId: user2.id });

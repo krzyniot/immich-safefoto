@@ -8,8 +8,33 @@ from
   "album_user"
 where
   "userId" = $1
-  and "createId" >= $2
-  and "createId" < $3
+  and "albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $2
+    where
+      "requester_album"."userId" = $3
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $4
+          )
+      )
+  )
+  and "createId" >= $5
+  and "createId" < $6
 order by
   "createId" asc
 
@@ -33,17 +58,66 @@ select distinct
   "album"."description",
   "album"."createdAt",
   "album"."updatedAt",
-  "album"."albumThumbnailAssetId" as "thumbnailAssetId",
   "album"."isActivityEnabled",
   "album"."order",
-  "album"."updateId"
+  "album"."updateId",
+  case
+    when "album"."albumThumbnailAssetId" in (
+      select
+        "household_asset"."id"
+      from
+        "asset" as "household_asset"
+      where
+        "household_asset"."ownerId" in (
+          select
+            "household_user"."id"
+          from
+            "user" as "household_user"
+          where
+            "household_user"."householdId" = (
+              select
+                "requester"."householdId"
+              from
+                "user" as "requester"
+              where
+                "requester"."id" = $1
+            )
+        )
+    ) then "album"."albumThumbnailAssetId"
+    else null
+  end as "thumbnailAssetId"
 from
   "album" as "album"
   left join "album_user" as "album_users" on "album"."id" = "album_users"."albumId"
 where
-  "album"."updateId" < $1
-  and "album"."updateId" > $2
-  and "album_users"."userId" = $3
+  "album"."updateId" < $2
+  and "album"."updateId" > $3
+  and "album_users"."userId" = $4
+  and "album"."id" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
 order by
   "album"."updateId" asc
 
@@ -55,6 +129,46 @@ from
   "album_user"
 where
   "albumId" = $1
+  and "albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $2
+    where
+      "requester_album"."userId" = $3
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $4
+          )
+      )
+  )
+  and "userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $5
+      )
+  )
 
 -- SyncRepository.albumAsset.getBackfill
 select
@@ -90,6 +204,53 @@ where
   and "album_asset"."updateId" <= $4
   and "album_asset"."updateId" > $5
   and "album_asset"."albumId" = $6
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $7
+    where
+      "requester_album"."userId" = $8
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $9
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $10
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -128,6 +289,53 @@ where
   and "asset"."updateId" > $4
   and "album_asset"."updateId" <= $5
   and "album_user"."userId" = $6
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $7
+    where
+      "requester_album"."userId" = $8
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $9
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $10
+          )
+      )
+  )
 order by
   "asset"."updateId" asc
 
@@ -165,6 +373,53 @@ where
   "album_asset"."updateId" < $3
   and "album_asset"."updateId" > $4
   and "album_user"."userId" = $5
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $6
+    where
+      "requester_album"."userId" = $7
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $8
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $9
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -204,6 +459,53 @@ where
   and "album_asset"."updateId" <= $2
   and "album_asset"."updateId" > $3
   and "album_asset"."albumId" = $4
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $8
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -244,6 +546,53 @@ where
   and "asset_exif"."updateId" > $2
   and "album_asset"."updateId" <= $3
   and "album_user"."userId" = $4
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $8
+          )
+      )
+  )
 order by
   "asset_exif"."updateId" asc
 
@@ -284,6 +633,53 @@ where
   "album_asset"."updateId" < $1
   and "album_asset"."updateId" > $2
   and "album_user"."userId" = $3
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $4
+    where
+      "requester_album"."userId" = $5
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $6
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -299,6 +695,53 @@ where
   and "album_asset"."updateId" <= $2
   and "album_asset"."updateId" > $3
   and "album_asset"."albumId" = $4
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $8
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -314,11 +757,74 @@ where
   and "album_asset_audit"."id" > $2
   and "albumId" in (
     select
-      "album_user"."albumId" as "id"
+      "requester_album"."albumId"
     from
-      "album_user"
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $3
     where
-      "album_user"."userId" = $3
+      "requester_album"."userId" = $4
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $5
+          )
+      )
+  )
+  and (
+    "assetId" in (
+      select
+        "household_asset"."id"
+      from
+        "asset" as "household_asset"
+      where
+        "household_asset"."ownerId" in (
+          select
+            "household_user"."id"
+          from
+            "user" as "household_user"
+          where
+            "household_user"."householdId" = (
+              select
+                "requester"."householdId"
+              from
+                "user" as "requester"
+              where
+                "requester"."id" = $6
+            )
+        )
+    )
+    or "assetId" in (
+      select
+        "household_asset_audit"."assetId"
+      from
+        "asset_audit" as "household_asset_audit"
+      where
+        "household_asset_audit"."ownerId" in (
+          select
+            "household_user"."id"
+          from
+            "user" as "household_user"
+          where
+            "household_user"."householdId" = (
+              select
+                "requester"."householdId"
+              from
+                "user" as "requester"
+              where
+                "requester"."id" = $7
+            )
+        )
+    )
   )
 order by
   "album_asset_audit"."id" asc
@@ -335,6 +841,53 @@ where
   "album_asset"."updateId" < $1
   and "album_asset"."updateId" > $2
   and "album_user"."userId" = $3
+  and "album_asset"."albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $4
+    where
+      "requester_album"."userId" = $5
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $6
+          )
+      )
+  )
+  and "album_asset"."assetId" in (
+    select
+      "household_asset"."id"
+    from
+      "asset" as "household_asset"
+    where
+      "household_asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
 order by
   "album_asset"."updateId" asc
 
@@ -351,6 +904,46 @@ where
   and "album_user"."updateId" <= $2
   and "album_user"."updateId" > $3
   and "albumId" = $4
+  and "albumId" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+          )
+      )
+  )
+  and "userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $8
+      )
+  )
 order by
   "album_user"."updateId" asc
 
@@ -366,11 +959,60 @@ where
   and "album_user_audit"."id" > $2
   and "albumId" in (
     select
-      "album_user"."albumId" as "id"
+      "requester_album"."albumId"
     from
-      "album_user"
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $3
     where
-      "album_user"."userId" = $3
+      "requester_album"."userId" = $4
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $5
+          )
+      )
+  )
+  and (
+    "userId" in (
+      select
+        "household_user"."id"
+      from
+        "user" as "household_user"
+      where
+        "household_user"."householdId" = (
+          select
+            "requester"."householdId"
+          from
+            "user" as "requester"
+          where
+            "requester"."id" = $6
+        )
+    )
+    or "userId" in (
+      select
+        "household_user_audit"."userId"
+      from
+        "user_audit" as "household_user_audit"
+      where
+        "household_user_audit"."householdId" = (
+          select
+            "requester"."householdId"
+          from
+            "user" as "requester"
+          where
+            "requester"."id" = $7
+        )
+    )
   )
 order by
   "album_user_audit"."id" asc
@@ -388,11 +1030,43 @@ where
   and "album_user"."updateId" > $2
   and "album_user"."albumId" in (
     select
-      "albumUsers"."albumId" as "id"
+      "requester_album"."albumId"
     from
-      "album_user" as "albumUsers"
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $3
     where
-      "albumUsers"."userId" = $3
+      "requester_album"."userId" = $4
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $5
+          )
+      )
+  )
+  and "album_user"."userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $6
+      )
   )
 order by
   "album_user"."updateId" asc

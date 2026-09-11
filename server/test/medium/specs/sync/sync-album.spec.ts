@@ -99,6 +99,7 @@ describe(SyncRequestType.AlbumsV1, () => {
     it('should detect and sync an album create', async () => {
       const { auth, ctx } = await setup();
       const { user: user2 } = await ctx.newUser();
+      await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
       const { album } = await ctx.newAlbum({ ownerId: user2.id });
       await ctx.newAlbumUser({ albumId: album.id, userId: auth.user.id, role: AlbumUserRole.Editor });
 
@@ -119,6 +120,7 @@ describe(SyncRequestType.AlbumsV1, () => {
     it('should detect and sync an album share (share before sync)', async () => {
       const { auth, ctx } = await setup();
       const { user: user2 } = await ctx.newUser();
+      await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
       const { album } = await ctx.newAlbum({ ownerId: user2.id });
       await ctx.newAlbumUser({ albumId: album.id, userId: auth.user.id, role: AlbumUserRole.Editor });
 
@@ -139,6 +141,7 @@ describe(SyncRequestType.AlbumsV1, () => {
     it('should detect and sync an album share (share after sync)', async () => {
       const { auth, ctx } = await setup();
       const { user: user2 } = await ctx.newUser();
+      await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
       const { album: userAlbum } = await ctx.newAlbum({ ownerId: auth.user.id });
       const { album: user2Album } = await ctx.newAlbum({ ownerId: user2.id });
 
@@ -173,6 +176,7 @@ describe(SyncRequestType.AlbumsV1, () => {
       const { auth, ctx } = await setup();
       const albumRepo = ctx.get(AlbumRepository);
       const { user: user2 } = await ctx.newUser();
+      await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
       const { album } = await ctx.newAlbum({ ownerId: user2.id });
       await ctx.newAlbumUser({ albumId: album.id, userId: auth.user.id, role: AlbumUserRole.Editor });
 
@@ -204,6 +208,7 @@ describe(SyncRequestType.AlbumsV1, () => {
       const { auth, ctx } = await setup();
       const albumUserRepo = ctx.get(AlbumUserRepository);
       const { user: user2 } = await ctx.newUser();
+      await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
       const { album } = await ctx.newAlbum({ ownerId: user2.id });
       await ctx.newAlbumUser({ albumId: album.id, userId: auth.user.id, role: AlbumUserRole.Editor });
 
