@@ -89,8 +89,8 @@ describe('SafeFoto household-aware album sync', () => {
 
     const { asset: allowedAsset } = await ctx.newAsset({ ownerId: owner.id });
     const { asset: foreignAsset } = await ctx.newAsset({ ownerId: outsider.id });
-    await ctx.newExif({ assetId: allowedAsset.id });
-    await ctx.newExif({ assetId: foreignAsset.id });
+    await ctx.newExif({ assetId: allowedAsset.id, make: 'SafeFoto Stage 1C' });
+    await ctx.newExif({ assetId: foreignAsset.id, make: 'SafeFoto Stage 1C' });
     const { album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
@@ -130,7 +130,7 @@ describe('SafeFoto household-aware album sync', () => {
     await ctx.moveUserToHouseholdOf(owner.id, requester.id);
 
     const { asset } = await ctx.newAsset({ ownerId: owner.id });
-    await ctx.newExif({ assetId: asset.id });
+    await ctx.newExif({ assetId: asset.id, make: 'SafeFoto Stage 1C' });
     const { album } = await ctx.newAlbum({ ownerId: owner.id }, [asset.id]);
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
