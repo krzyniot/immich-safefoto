@@ -43,7 +43,7 @@ afterAll(async () => {
 
 describe.sequential('SafeFoto household schema and migration', () => {
   it('creates a household on a freshly migrated database', async () => {
-    const household = await database.insertInto('household').values({}).returningAll().executeTakeFirstOrThrow();
+    const household = await database.insertInto('household').defaultValues().returningAll().executeTakeFirstOrThrow();
 
     expect(household.id).toEqual(expect.any(String));
     expect(household.createdAt).toBeInstanceOf(Date);

@@ -175,7 +175,7 @@ export class UserRepository {
 
   async create(dto: UserCreate) {
     return this.db.transaction().execute(async (tx) => {
-      const household = await tx.insertInto('household').values({}).returning('id').executeTakeFirstOrThrow();
+      const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();
 
       return tx
         .insertInto('user')
