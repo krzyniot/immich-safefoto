@@ -24,7 +24,7 @@ beforeAll(async () => {
     (${user1Id}::uuid, 'stage1a-a@example.invalid', 'Stage 1A A'),
     (${user2Id}::uuid, 'stage1a-b@example.invalid', 'Stage 1A B');`.execute(database);
 
-  const album = await database.insertInto('album').values({}).returning('id').executeTakeFirstOrThrow();
+  const album = await database.insertInto('album').values(mediumFactory.albumInsert({})).returning('id').executeTakeFirstOrThrow();
   await database
     .insertInto('album_user')
     .values([
