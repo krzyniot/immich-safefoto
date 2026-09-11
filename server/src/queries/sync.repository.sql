@@ -1100,6 +1100,14 @@ from
 where
   "user_audit"."id" < $1
   and "user_audit"."id" > $2
+  and "householdId" = (
+    select
+      "householdId"
+    from
+      "user"
+    where
+      "id" = $3
+  )
 order by
   "user_audit"."id" asc
 
@@ -1118,6 +1126,14 @@ from
 where
   "user"."updateId" < $1
   and "user"."updateId" > $2
+  and "householdId" = (
+    select
+      "householdId"
+    from
+      "user"
+    where
+      "id" = $3
+  )
 order by
   "user"."updateId" asc
 

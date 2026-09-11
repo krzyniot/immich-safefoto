@@ -178,7 +178,10 @@ describe(SyncService.name, () => {
     it('should cleanup the user_audit table', async () => {
       const { sut, ctx } = setup();
       const tableName = 'user_audit';
-      await ctx.database.insertInto(tableName).values({ userId: v4(), deletedAt: deletedLongAgo }).execute();
+      await ctx.database
+        .insertInto(tableName)
+        .values({ userId: v4(), householdId: v4(), deletedAt: deletedLongAgo })
+        .execute();
 
       await assertTableCount(ctx.database, tableName, 1);
       await expect(sut.onAuditTableCleanup()).resolves.toBeUndefined();

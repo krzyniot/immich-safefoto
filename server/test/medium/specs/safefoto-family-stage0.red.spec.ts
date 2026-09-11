@@ -7,20 +7,29 @@ import { getKyselyDB } from 'test/utils';
 
 let database: Kysely<DB>;
 
+const moveToHouseholdOf = async (userId: string, householdMemberId: string) => {
+  const household = await database
+    .selectFrom('user')
+    .select('householdId')
+    .where('id', '=', householdMemberId)
+    .executeTakeFirstOrThrow();
+  await database.updateTable('user').set({ householdId: household.householdId }).where('id', '=', userId).execute();
+};
+
 beforeAll(async () => {
   database = await getKyselyDB();
 });
 
 /**
- * Medium tests need the disposable Immich PostgreSQL test environment.
- * Household labels below are test semantics only; v3.0.1 has no household
- * projection yet. All four tests are expected to be RED on pristine upstream.
+ * Historical Stage 0 characterization tests. On Stage 1B, SF-FAM-007/008 are
+ * expected GREEN while the out-of-scope album tests remain RED.
  */
 describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
   it('SF-FAM-007: UsersV1 for A1 must contain only Household A users', async () => {
     const ctx = new SyncTestContext(database);
     const { auth: a1Auth, user: a1 } = await ctx.newSyncAuthUser();
     const { user: a2 } = await ctx.newUser({ name: 'Household A Adult', email: 'a2@example.invalid' });
+    await moveToHouseholdOf(a2.id, a1.id);
     const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1-007@example.invalid' });
     const { user: b2 } = await ctx.newUser({ name: 'Household B Adult', email: 'b2@example.invalid' });
 
@@ -37,17 +46,26 @@ describe('SafeFoto household isolation - Stage 0 medium red tests', () => {
     const ctx = new SyncTestContext(database);
     const { auth: a1Auth } = await ctx.newSyncAuthUser();
     const { user: b1 } = await ctx.newUser({ name: 'Household B Owner', email: 'b1-008@example.invalid' });
+    const { auth: b2Auth, user: b2 } = await ctx.newSyncAuthUser();
+    await moveToHouseholdOf(b2.id, b1.id);
 
-    const initial = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
-    await ctx.syncAckAll(a1Auth, initial);
+    const initialA = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
+    await ctx.syncAckAll(a1Auth, initialA);
+    const initialB = await ctx.syncStream(b2Auth, [SyncRequestType.UsersV1]);
+    await ctx.syncAckAll(b2Auth, initialB);
     await ctx.get(UserRepository).delete({ id: b1.id }, true);
 
-    const response = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
-    const deletedUserIds = response
+    const responseA = await ctx.syncStream(a1Auth, [SyncRequestType.UsersV1]);
+    const deletedUserIdsA = responseA
+      .filter(({ type }) => type === SyncEntityType.UserDeleteV1)
+      .map(({ data }) => (data as { userId: string }).userId);
+    const responseB = await ctx.syncStream(b2Auth, [SyncRequestType.UsersV1]);
+    const deletedUserIdsB = responseB
       .filter(({ type }) => type === SyncEntityType.UserDeleteV1)
       .map(({ data }) => (data as { userId: string }).userId);
 
-    expect(deletedUserIds).not.toContain(b1.id);
+    expect(deletedUserIdsA).not.toContain(b1.id);
+    expect(deletedUserIdsB).toContain(b1.id);
   });
 
   it('SF-FAM-009: a stale cross-household album_user must not grant album read/sync', async () => {

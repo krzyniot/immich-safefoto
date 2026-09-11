@@ -87,8 +87,8 @@ export const user_delete_audit = registerFunction({
   language: 'PLPGSQL',
   body: `
     BEGIN
-      INSERT INTO user_audit ("userId")
-      SELECT "id"
+      INSERT INTO user_audit ("userId", "householdId")
+      SELECT "id", "householdId"
       FROM OLD;
       RETURN NULL;
     END`,

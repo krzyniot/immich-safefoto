@@ -7,10 +7,20 @@ import { getKyselyDB } from 'test/utils';
 
 let defaultDatabase: Kysely<DB>;
 
+const moveToHouseholdOf = async (database: Kysely<DB>, userId: string, householdMemberId: string) => {
+  const household = await database
+    .selectFrom('user')
+    .select('householdId')
+    .where('id', '=', householdMemberId)
+    .executeTakeFirstOrThrow();
+  await database.updateTable('user').set({ householdId: household.householdId }).where('id', '=', userId).execute();
+};
+
 const setup = async (db?: Kysely<DB>) => {
-  const ctx = new SyncTestContext(db || defaultDatabase);
+  const database = db || defaultDatabase;
+  const ctx = new SyncTestContext(database);
   const { auth, user, session } = await ctx.newSyncAuthUser();
-  return { auth, user, session, ctx };
+  return { auth, user, session, ctx, database };
 };
 
 beforeAll(async () => {
@@ -50,9 +60,10 @@ describe(SyncEntityType.UserV1, () => {
   });
 
   it('should detect and sync a soft deleted user', async () => {
-    const { auth, ctx } = await setup(await getKyselyDB());
+    const { auth, ctx, database } = await setup(await getKyselyDB());
 
     const { user: deleted } = await ctx.newUser({ deletedAt: new Date().toISOString() });
+    await moveToHouseholdOf(database, deleted.id, auth.user.id);
 
     const response = await ctx.syncStream(auth, [SyncRequestType.UsersV1]);
 
@@ -77,11 +88,12 @@ describe(SyncEntityType.UserV1, () => {
   });
 
   it('should detect and sync a deleted user', async () => {
-    const { auth, user: authUser, ctx } = await setup(await getKyselyDB());
+    const { auth, user: authUser, ctx, database } = await setup(await getKyselyDB());
 
     const userRepo = ctx.get(UserRepository);
 
     const { user } = await ctx.newUser();
+    await moveToHouseholdOf(database, user.id, auth.user.id);
     await userRepo.delete({ id: user.id }, true);
 
     const response = await ctx.syncStream(auth, [SyncRequestType.UsersV1]);

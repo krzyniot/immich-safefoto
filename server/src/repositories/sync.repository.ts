@@ -740,7 +740,10 @@ class PartnerStackSync extends BaseSync {
 class UserSync extends BaseSync {
   @GenerateSql({ params: [dummyQueryOptions], stream: true })
   getDeletes(options: SyncQueryOptions) {
-    return this.auditQuery('user_audit', options).select(['id', 'userId']).stream();
+    return this.auditQuery('user_audit', options)
+      .select(['id', 'userId'])
+      .where('householdId', '=', (eb) => eb.selectFrom('user').select('householdId').where('id', '=', options.userId))
+      .stream();
   }
 
   cleanupAuditTable(daysAgo: number) {
@@ -749,7 +752,10 @@ class UserSync extends BaseSync {
 
   @GenerateSql({ params: [dummyQueryOptions], stream: true })
   getUpserts(options: SyncQueryOptions) {
-    return this.upsertQuery('user', options).select(columns.syncUser).stream();
+    return this.upsertQuery('user', options)
+      .select(columns.syncUser)
+      .where('householdId', '=', (eb) => eb.selectFrom('user').select('householdId').where('id', '=', options.userId))
+      .stream();
   }
 }
 
