@@ -307,6 +307,103 @@ where
 order by
   "createdAt" desc
 
+-- UserRepository.getByHousehold
+select
+  "id",
+  "name",
+  "email",
+  "avatarColor",
+  "profileImagePath",
+  "profileChangedAt",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  "isAdmin",
+  "status",
+  "oauthId",
+  "profileImagePath",
+  "shouldChangePassword",
+  "storageLabel",
+  "quotaSizeInBytes",
+  "quotaUsageInBytes",
+  (
+    select
+      coalesce(json_agg(agg), '[]')
+    from
+      (
+        select
+          "user_metadata"."key",
+          "user_metadata"."value"
+        from
+          "user_metadata"
+        where
+          "user"."id" = "user_metadata"."userId"
+      ) as agg
+  ) as "metadata"
+from
+  "user"
+where
+  "user"."deletedAt" is null
+  and "user"."householdId" = (
+    select
+      "requester"."householdId"
+    from
+      "user" as "requester"
+    where
+      "requester"."id" = $1
+      and "requester"."deletedAt" is null
+  )
+order by
+  "createdAt" desc
+
+-- UserRepository.getInHousehold
+select
+  "id",
+  "name",
+  "email",
+  "avatarColor",
+  "profileImagePath",
+  "profileChangedAt",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  "isAdmin",
+  "status",
+  "oauthId",
+  "profileImagePath",
+  "shouldChangePassword",
+  "storageLabel",
+  "quotaSizeInBytes",
+  "quotaUsageInBytes",
+  (
+    select
+      coalesce(json_agg(agg), '[]')
+    from
+      (
+        select
+          "user_metadata"."key",
+          "user_metadata"."value"
+        from
+          "user_metadata"
+        where
+          "user"."id" = "user_metadata"."userId"
+      ) as agg
+  ) as "metadata"
+from
+  "user"
+where
+  "user"."id" = $1
+  and "user"."deletedAt" is null
+  and "user"."householdId" = (
+    select
+      "requester"."householdId"
+    from
+      "user" as "requester"
+    where
+      "requester"."id" = $2
+      and "requester"."deletedAt" is null
+  )
+
 -- UserRepository.getUserStats
 select
   "user"."id" as "userId",

@@ -26,16 +26,7 @@ import { generateProfileImage } from 'src/utils/profile-image';
 @Injectable()
 export class UserService extends BaseService {
   async search(auth: AuthDto): Promise<UserResponseDto[]> {
-    const config = await this.getConfig({ withCache: false });
-
-    let users;
-    if (auth.user.isAdmin || config.server.publicUsers) {
-      users = await this.userRepository.getList({ withDeleted: false });
-    } else {
-      const authUser = await this.userRepository.get(auth.user.id, {});
-      users = authUser ? [authUser] : [];
-    }
-
+    const users = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
     return users.map((user) => mapUser(user));
   }
 
@@ -95,8 +86,11 @@ export class UserService extends BaseService {
     return mapPreferences(updated);
   }
 
-  async get(id: string): Promise<UserResponseDto> {
-    const user = await this.findOrFail(id, { withDeleted: false });
+  async get(auth: AuthDto, id: string): Promise<UserResponseDto> {
+    const user = await this.familyPolicy.getDiscoverableUser(auth.user.id, id);
+    if (!user) {
+      throw new NotFoundException();
+    }
     return mapUser(user);
   }
 
@@ -141,8 +135,8 @@ export class UserService extends BaseService {
     await this.jobRepository.queue({ name: JobName.FileDelete, data: { files: [user.profileImagePath] } });
   }
 
-  async getProfileImage(id: string): Promise<ImmichFileResponse> {
-    const user = await this.userRepository.get(id, {});
+  async getProfileImage(auth: AuthDto, id: string): Promise<ImmichFileResponse> {
+    const user = await this.familyPolicy.getDiscoverableUser(auth.user.id, id);
     if (!user || !user.profileImagePath) {
       this.logger.debug('User or profile image not found');
       throw new NotFoundException();

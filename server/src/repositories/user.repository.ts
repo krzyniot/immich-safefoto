@@ -173,6 +173,42 @@ export class UserRepository {
       .execute();
   }
 
+  @GenerateSql({ params: [DummyValue.UUID] })
+  getByHousehold(userId: string) {
+    return this.db
+      .selectFrom('user')
+      .select(columns.userAdmin)
+      .select(withMetadata)
+      .where('user.deletedAt', 'is', null)
+      .where('user.householdId', '=', (eb) =>
+        eb
+          .selectFrom('user as requester')
+          .select('requester.householdId')
+          .where('requester.id', '=', userId)
+          .where('requester.deletedAt', 'is', null),
+      )
+      .orderBy('createdAt', 'desc')
+      .execute();
+  }
+
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID] })
+  getInHousehold(userId: string, targetUserId: string) {
+    return this.db
+      .selectFrom('user')
+      .select(columns.userAdmin)
+      .select(withMetadata)
+      .where('user.id', '=', targetUserId)
+      .where('user.deletedAt', 'is', null)
+      .where('user.householdId', '=', (eb) =>
+        eb
+          .selectFrom('user as requester')
+          .select('requester.householdId')
+          .where('requester.id', '=', userId)
+          .where('requester.deletedAt', 'is', null),
+      )
+      .executeTakeFirst();
+  }
+
   async create(dto: UserCreate) {
     return this.db.transaction().execute(async (tx) => {
       const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();

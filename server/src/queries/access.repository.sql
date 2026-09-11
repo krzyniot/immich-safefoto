@@ -20,7 +20,34 @@ from
   and "album_user"."role" = 'owner'
   and "album_user"."userId" = $1::uuid
 where
-  "activity"."id" in ($2)
+  "album"."id" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $2
+    where
+      "requester_album"."userId" = $3
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $4
+              and "requester"."deletedAt" is null
+          )
+      )
+  )
+  and "activity"."id" in ($5)
 
 -- AccessRepository.activity.checkCreateAccess
 select
@@ -34,6 +61,33 @@ where
   "album"."id" in ($1)
   and "album"."isActivityEnabled" = $2
   and "user"."id" = $3
+  and "album"."id" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $4
+    where
+      "requester_album"."userId" = $5
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $6
+              and "requester"."deletedAt" is null
+          )
+      )
+  )
   and "album"."deletedAt" is null
 
 -- AccessRepository.album.checkOwnerAccess
@@ -46,6 +100,23 @@ from
   and "album_user"."userId" = $1
 where
   "album"."id" in ($2)
+  and "album_user"."userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $3
+          and "requester"."deletedAt" is null
+      )
+  )
   and "album"."deletedAt" is null
 
 -- AccessRepository.album.checkSharedAlbumAccess
@@ -61,6 +132,33 @@ where
   and "album"."deletedAt" is null
   and "user"."id" = $2
   and "album_user"."role" in ($3, $4)
+  and "album"."id" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $5
+    where
+      "requester_album"."userId" = $6
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $7
+              and "requester"."deletedAt" is null
+          )
+      )
+  )
 
 -- AccessRepository.album.checkSharedLinkAccess
 select
@@ -95,6 +193,50 @@ where
     or "asset"."livePhotoVideoId" = any (target.ids)
   )
   and "user"."id" = $2
+  and "album"."id" in (
+    select
+      "requester_album"."albumId"
+    from
+      "album_user" as "requester_album"
+      inner join "album_user" as "owner_album" on "owner_album"."albumId" = "requester_album"."albumId"
+      and "owner_album"."role" = $3
+    where
+      "requester_album"."userId" = $4
+      and "owner_album"."userId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $5
+              and "requester"."deletedAt" is null
+          )
+      )
+  )
+  and "asset"."ownerId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $6
+          and "requester"."deletedAt" is null
+      )
+  )
   and "album"."deletedAt" is null
 
 -- AccessRepository.asset.checkOwnerAccess
@@ -114,10 +256,13 @@ from
   "partner"
   inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
   and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
   inner join "asset" on "asset"."ownerId" = "sharedBy"."id"
   and "asset"."deletedAt" is null
 where
   "partner"."sharedWithId" = $1
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
   and (
     "asset"."visibility" = 'timeline'
     or "asset"."visibility" = 'hidden'
@@ -212,9 +357,14 @@ select
   "partner"."sharedById"
 from
   "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
 where
   "partner"."sharedById" in ($1)
   and "partner"."sharedWithId" = $2
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
 
 -- AccessRepository.session.checkOwnerAccess
 select
@@ -248,9 +398,14 @@ select
   "partner"."sharedById"
 from
   "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
 where
   "partner"."sharedById" in ($1)
   and "partner"."sharedWithId" = $2
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
 
 -- AccessRepository.workflow.checkOwnerAccess
 select

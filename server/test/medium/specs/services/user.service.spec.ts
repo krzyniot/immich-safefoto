@@ -65,6 +65,12 @@ describe(UserService.name, () => {
       const { sut, ctx } = setup();
       const { user: user1 } = await ctx.newUser();
       const { user: user2 } = await ctx.newUser();
+      const { householdId } = await defaultDatabase
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', user1.id)
+        .executeTakeFirstOrThrow();
+      await defaultDatabase.updateTable('user').set({ householdId }).where('id', '=', user2.id).execute();
       const auth = factory.auth({ user: user1 });
 
       await expect(sut.search(auth)).resolves.toEqual(
@@ -80,8 +86,9 @@ describe(UserService.name, () => {
     it('should get a user', async () => {
       const { sut, ctx } = setup();
       const { user } = await ctx.newUser();
+      const auth = factory.auth({ user });
 
-      await expect(sut.get(user.id)).resolves.toEqual(
+      await expect(sut.get(auth, user.id)).resolves.toEqual(
         expect.objectContaining({
           id: user.id,
           name: user.name,
@@ -93,7 +100,8 @@ describe(UserService.name, () => {
     it('should not return password', async () => {
       const { sut, ctx } = setup();
       const { user } = await ctx.newUser();
-      const result = await sut.get(user.id);
+      const auth = factory.auth({ user });
+      const result = await sut.get(auth, user.id);
 
       expect((result as any).password).toBeUndefined();
     });

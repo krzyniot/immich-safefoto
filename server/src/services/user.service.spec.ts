@@ -28,30 +28,32 @@ describe(UserService.name, () => {
   });
 
   describe('getAll', () => {
-    it('admin should get all users', async () => {
+    it('admin should only get users in its household', async () => {
       const user = UserFactory.create();
       const auth = AuthFactory.create(user);
 
-      mocks.user.getList.mockResolvedValue([user]);
+      mocks.user.getByHousehold.mockResolvedValue([user]);
 
       await expect(sut.search(auth)).resolves.toEqual([expect.objectContaining({ id: user.id, email: user.email })]);
 
-      expect(mocks.user.getList).toHaveBeenCalledWith({ withDeleted: false });
+      expect(mocks.user.getByHousehold).toHaveBeenCalledWith(user.id);
+      expect(mocks.user.getList).not.toHaveBeenCalled();
     });
 
-    it('non-admin should get all users when publicUsers enabled', async () => {
+    it('publicUsers should not expand discovery beyond the household', async () => {
       const user = UserFactory.create();
       const auth = AuthFactory.create(user);
 
-      mocks.user.getList.mockResolvedValue([user]);
+      mocks.user.getByHousehold.mockResolvedValue([user]);
 
       await expect(sut.search(auth)).resolves.toEqual([expect.objectContaining({ id: user.id, email: user.email })]);
 
-      expect(mocks.user.getList).toHaveBeenCalledWith({ withDeleted: false });
+      expect(mocks.user.getByHousehold).toHaveBeenCalledWith(user.id);
+      expect(mocks.user.getList).not.toHaveBeenCalled();
     });
 
-    it('non-admin user should only receive itself when publicUsers is disabled', async () => {
-      mocks.user.getList.mockResolvedValue([userStub.user1]);
+    it('should use the household projection when publicUsers is disabled', async () => {
+      mocks.user.getByHousehold.mockResolvedValue([userStub.user1]);
       mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.publicUsersDisabled);
 
       await expect(sut.search(authStub.user1)).resolves.toEqual([
@@ -61,25 +63,25 @@ describe(UserService.name, () => {
         }),
       ]);
 
-      expect(mocks.user.getList).not.toHaveBeenCalledWith({ withDeleted: false });
+      expect(mocks.user.getByHousehold).toHaveBeenCalledWith(authStub.user1.user.id);
     });
   });
 
   describe('get', () => {
     it('should get a user by id', async () => {
-      mocks.user.get.mockResolvedValue(userStub.admin);
+      mocks.user.getInHousehold.mockResolvedValue(userStub.admin);
 
-      await sut.get(authStub.admin.user.id);
+      await sut.get(authStub.admin, authStub.admin.user.id);
 
-      expect(mocks.user.get).toHaveBeenCalledWith(authStub.admin.user.id, { withDeleted: false });
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(authStub.admin.user.id, authStub.admin.user.id);
     });
 
     it('should throw an error if a user is not found', async () => {
-      mocks.user.get.mockResolvedValue(void 0);
+      mocks.user.getInHousehold.mockResolvedValue(void 0);
 
-      await expect(sut.get(authStub.admin.user.id)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(sut.get(authStub.admin, authStub.admin.user.id)).rejects.toBeInstanceOf(NotFoundException);
 
-      expect(mocks.user.get).toHaveBeenCalledWith(authStub.admin.user.id, { withDeleted: false });
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(authStub.admin.user.id, authStub.admin.user.id);
     });
   });
 
@@ -177,26 +179,26 @@ describe(UserService.name, () => {
 
   describe('getUserProfileImage', () => {
     it('should throw an error if the user does not exist', async () => {
-      mocks.user.get.mockResolvedValue(void 0);
+      mocks.user.getInHousehold.mockResolvedValue(void 0);
 
-      await expect(sut.getProfileImage(userStub.admin.id)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(sut.getProfileImage(authStub.admin, userStub.admin.id)).rejects.toBeInstanceOf(NotFoundException);
 
-      expect(mocks.user.get).toHaveBeenCalledWith(userStub.admin.id, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(authStub.admin.user.id, userStub.admin.id);
     });
 
     it('should throw an error if the user does not have a picture', async () => {
-      mocks.user.get.mockResolvedValue(userStub.admin);
+      mocks.user.getInHousehold.mockResolvedValue(userStub.admin);
 
-      await expect(sut.getProfileImage(userStub.admin.id)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(sut.getProfileImage(authStub.admin, userStub.admin.id)).rejects.toBeInstanceOf(NotFoundException);
 
-      expect(mocks.user.get).toHaveBeenCalledWith(userStub.admin.id, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(authStub.admin.user.id, userStub.admin.id);
     });
 
     it('should return the profile picture', async () => {
       const user = UserFactory.create({ profileImagePath: '/path/to/profile.jpg' });
-      mocks.user.get.mockResolvedValue(user);
+      mocks.user.getInHousehold.mockResolvedValue(user);
 
-      await expect(sut.getProfileImage(user.id)).resolves.toEqual(
+      await expect(sut.getProfileImage(authStub.admin, user.id)).resolves.toEqual(
         new ImmichFileResponse({
           path: '/path/to/profile.jpg',
           contentType: 'image/jpeg',
@@ -204,14 +206,14 @@ describe(UserService.name, () => {
         }),
       );
 
-      expect(mocks.user.get).toHaveBeenCalledWith(user.id, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(authStub.admin.user.id, user.id);
     });
 
     it('should return the profile picture with the content-type matching the stored file', async () => {
       const user = UserFactory.create({ profileImagePath: '/path/to/profile.webp' });
-      mocks.user.get.mockResolvedValue(user);
+      mocks.user.getInHousehold.mockResolvedValue(user);
 
-      await expect(sut.getProfileImage(user.id)).resolves.toEqual(
+      await expect(sut.getProfileImage(authStub.admin, user.id)).resolves.toEqual(
         new ImmichFileResponse({
           path: '/path/to/profile.webp',
           contentType: 'image/webp',

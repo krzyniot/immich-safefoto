@@ -57,6 +57,7 @@ import { VideoStreamRepository } from 'src/repositories/video-stream.repository'
 import { ViewRepository } from 'src/repositories/view-repository';
 import { WebsocketRepository } from 'src/repositories/websocket.repository';
 import { WorkflowRepository } from 'src/repositories/workflow.repository';
+import { SafeFotoFamilyPolicyService } from 'src/services/safefoto-family-policy.service';
 import { ClassConstructor } from 'src/types';
 import { AccessRequest, checkAccess, requireAccess } from 'src/utils/access';
 import { getConfig, updateConfig } from 'src/utils/config';
@@ -120,6 +121,7 @@ export const BASE_SERVICE_DEPENDENCIES = [
 @Injectable()
 export class BaseService {
   protected storageCore: StorageCore;
+  protected familyPolicy: SafeFotoFamilyPolicyService;
 
   constructor(
     protected logger: LoggingRepository,
@@ -177,6 +179,7 @@ export class BaseService {
     protected workflowRepository: WorkflowRepository,
   ) {
     this.logger.setContext(this.constructor.name);
+    this.familyPolicy = new SafeFotoFamilyPolicyService(userRepository);
     this.storageCore = StorageCore.create(
       assetRepository,
       configRepository,

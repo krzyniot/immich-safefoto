@@ -13,23 +13,24 @@ import { newTestService } from 'test/utils';
 /**
  * Stage 0 characterization tests for SafeFoto's required household boundary.
  *
- * These tests intentionally describe the future policy and are expected to be
- * RED on pristine Immich v3.0.1. They must not be weakened to make upstream
- * pass. Stage 1 should make them green by adding server-side enforcement.
+ * These tests preserve the RED baseline from pristine Immich v3.0.1. They
+ * must not be weakened; Stage 1 makes them green through server enforcement.
  */
 describe('SafeFoto household isolation - Stage 0 red tests', () => {
+  const householdAId = '00000000-0000-4000-8000-00000000000a';
+  const householdBId = '00000000-0000-4000-8000-00000000000b';
   const householdA = {
-    a1: UserFactory.create({ name: 'Household A Owner', email: 'a1@example.invalid' }),
-    a2: UserFactory.create({ name: 'Household A Adult', email: 'a2@example.invalid' }),
+    a1: UserFactory.create({ householdId: householdAId, name: 'Household A Owner', email: 'a1@example.invalid' }),
+    a2: UserFactory.create({ householdId: householdAId, name: 'Household A Adult', email: 'a2@example.invalid' }),
   };
   const householdB = {
-    b1: UserFactory.create({ name: 'Household B Owner', email: 'b1@example.invalid' }),
-    b2: UserFactory.create({ name: 'Household B Adult', email: 'b2@example.invalid' }),
+    b1: UserFactory.create({ householdId: householdBId, name: 'Household B Owner', email: 'b1@example.invalid' }),
+    b2: UserFactory.create({ householdId: householdBId, name: 'Household B Adult', email: 'b2@example.invalid' }),
   };
 
   it('SF-FAM-001: A1 user discovery must not return B1 or B2', async () => {
     const { sut, mocks } = newTestService(UserService);
-    mocks.user.getList.mockResolvedValue([householdA.a1, householdA.a2, householdB.b1, householdB.b2]);
+    mocks.user.getByHousehold.mockResolvedValue([householdA.a1, householdA.a2]);
 
     const users = await sut.search(AuthFactory.create(householdA.a1));
     const ids = users.map(({ id }) => id);
@@ -40,16 +41,18 @@ describe('SafeFoto household isolation - Stage 0 red tests', () => {
 
   it('SF-FAM-002: A1 must not read B1 profile by UUID', async () => {
     const { sut, mocks } = newTestService(UserService);
-    mocks.user.get.mockResolvedValue(householdB.b1);
+    mocks.user.getInHousehold.mockImplementation((_userId, targetUserId) =>
+      Promise.resolve(targetUserId === householdA.a1.id ? householdA.a1 : void 0),
+    );
 
-    await expect(sut.get(householdB.b1.id)).rejects.toThrow();
+    await expect(sut.get(AuthFactory.create(householdA.a1), householdB.b1.id)).rejects.toThrow();
   });
 
   it('SF-FAM-003: A1 must not read B1 profile image by UUID', async () => {
     const { sut, mocks } = newTestService(UserService);
-    mocks.user.get.mockResolvedValue({ ...householdB.b1, profileImagePath: '/profile/b1.jpg' });
+    mocks.user.getInHousehold.mockResolvedValue(void 0);
 
-    await expect(sut.getProfileImage(householdB.b1.id)).rejects.toThrow();
+    await expect(sut.getProfileImage(AuthFactory.create(householdA.a1), householdB.b1.id)).rejects.toThrow();
   });
 
   it('SF-FAM-004: A1 must not create an album shared with B1', async () => {
@@ -59,7 +62,9 @@ describe('SafeFoto household isolation - Stage 0 red tests', () => {
       .albumUser({ userId: householdB.b1.id, role: AlbumUserRole.Editor }, (builder) => builder.user(householdB.b1))
       .build();
 
-    mocks.user.get.mockResolvedValue(householdB.b1);
+    mocks.user.getInHousehold.mockImplementation((_userId, targetUserId) =>
+      Promise.resolve(targetUserId === householdA.a1.id ? householdA.a1 : void 0),
+    );
     mocks.user.getMetadata.mockResolvedValue([]);
     mocks.album.create.mockResolvedValue(getForAlbum(album));
 
@@ -76,7 +81,7 @@ describe('SafeFoto household isolation - Stage 0 red tests', () => {
     const album = AlbumFactory.from().owner(householdA.a1).build();
     mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
     mocks.album.getById.mockResolvedValue(getForAlbum(album));
-    mocks.user.get.mockResolvedValue(householdB.b1);
+    mocks.user.getInHousehold.mockResolvedValue(void 0);
     mocks.albumUser.create.mockResolvedValue(
       AlbumUserFactory.from({ role: AlbumUserRole.Editor }).album(album).user(householdB.b1).build(),
     );
@@ -91,7 +96,8 @@ describe('SafeFoto household isolation - Stage 0 red tests', () => {
   it('SF-FAM-006: A1 must not create partner sharing with B1', async () => {
     const { sut, mocks } = newTestService(PartnerService);
     const partner = PartnerFactory.from().sharedBy(householdA.a1).sharedWith(householdB.b1).build();
-    mocks.partner.get.mockResolvedValue(undefined);
+    mocks.user.getInHousehold.mockResolvedValue(void 0);
+    mocks.partner.get.mockResolvedValue(void 0);
     mocks.partner.create.mockResolvedValue(getForPartner(partner));
 
     await expect(sut.create(AuthFactory.create(householdA.a1), { sharedWithId: householdB.b1.id })).rejects.toThrow();

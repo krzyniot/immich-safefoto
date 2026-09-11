@@ -18,6 +18,9 @@ describe(AlbumService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(AlbumService));
+    mocks.user.getInHousehold.mockImplementation((_userId, targetUserId) =>
+      Promise.resolve(UserFactory.create({ id: targetUserId })),
+    );
   });
 
   it('should work', () => {
@@ -40,6 +43,10 @@ describe(AlbumService.name, () => {
   });
 
   describe('getAll', () => {
+    beforeEach(() => {
+      mocks.access.album.checkOwnerAccess.mockImplementation((_userId, ids) => Promise.resolve(new Set(ids)));
+    });
+
     it('gets list of albums for auth user', async () => {
       const album = AlbumFactory.from().albumUser().build();
       const { user: owner } = album.albumUsers.find(({ role }) => role === AlbumUserRole.Owner)!;
@@ -188,6 +195,7 @@ describe(AlbumService.name, () => {
     const album = AlbumFactory.create();
     const { user: owner } = album.albumUsers.find(({ role }) => role === AlbumUserRole.Owner)!;
     mocks.album.getAll.mockResolvedValue([getForAlbum(album)]);
+    mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
     mocks.album.getMetadataForIds.mockResolvedValue([
       {
         albumId: album.id,
@@ -241,7 +249,7 @@ describe(AlbumService.name, () => {
         owner.id,
       );
 
-      expect(mocks.user.get).toHaveBeenCalledWith(albumUser.userId, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(owner.id, albumUser.userId);
       expect(mocks.user.getMetadata).toHaveBeenCalledWith(owner.id);
       expect(mocks.access.asset.checkOwnerAccess).toHaveBeenCalledWith(owner.id, new Set([assetId]), false);
       expect(mocks.event.emit).toHaveBeenCalledTimes(1);
@@ -294,7 +302,7 @@ describe(AlbumService.name, () => {
         owner.id,
       );
 
-      expect(mocks.user.get).toHaveBeenCalledWith(albumUser.userId, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(owner.id, albumUser.userId);
       expect(mocks.user.getMetadata).toHaveBeenCalledWith(owner.id);
       expect(mocks.access.asset.checkOwnerAccess).toHaveBeenCalledWith(owner.id, new Set([assetId]), false);
       expect(mocks.event.emit).toHaveBeenCalledWith('AlbumInvite', {
@@ -305,14 +313,17 @@ describe(AlbumService.name, () => {
     });
 
     it('should require valid userIds', async () => {
-      mocks.user.get.mockResolvedValue(void 0);
+      const auth = AuthFactory.create();
+      mocks.user.getInHousehold.mockImplementation((_userId, targetUserId) =>
+        Promise.resolve(targetUserId === auth.user.id ? UserFactory.create({ id: targetUserId }) : void 0),
+      );
       await expect(
-        sut.create(AuthFactory.create(), {
+        sut.create(auth, {
           albumName: 'Empty album',
           albumUsers: [{ userId: 'unknown-user', role: AlbumUserRole.Editor }],
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
-      expect(mocks.user.get).toHaveBeenCalledWith('unknown-user', {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(auth.user.id, 'unknown-user');
       expect(mocks.album.create).not.toHaveBeenCalled();
     });
 
@@ -492,12 +503,12 @@ describe(AlbumService.name, () => {
       const { user: owner } = album.albumUsers.find(({ role }) => role === AlbumUserRole.Owner)!;
       mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
       mocks.album.getById.mockResolvedValue(getForAlbum(album));
-      mocks.user.get.mockResolvedValue(void 0);
+      mocks.user.getInHousehold.mockResolvedValue(void 0);
       await expect(
         sut.addUsers(AuthFactory.create(owner), album.id, { albumUsers: [{ userId: 'unknown-user' }] }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(mocks.album.update).not.toHaveBeenCalled();
-      expect(mocks.user.get).toHaveBeenCalledWith('unknown-user', {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(owner.id, 'unknown-user');
     });
 
     it('should skip if the userId is the ownerId', async () => {
@@ -553,8 +564,7 @@ describe(AlbumService.name, () => {
         albumUsers: [{ userId: existingUserId }, { userId: user.id }],
       });
 
-      expect(mocks.user.get).toHaveBeenCalledTimes(1);
-      expect(mocks.user.get).toHaveBeenCalledWith(user.id, {});
+      expect(mocks.user.getInHousehold).toHaveBeenCalledWith(owner.id, user.id);
       expect(mocks.albumUser.create).toHaveBeenCalledTimes(1);
       expect(mocks.albumUser.create).toHaveBeenCalledWith({
         userId: user.id,
@@ -611,6 +621,7 @@ describe(AlbumService.name, () => {
     it('should allow a shared user to remove themselves', async () => {
       const user1 = UserFactory.create();
       const album = AlbumFactory.from().albumUser({ userId: user1.id }).build();
+      mocks.access.album.checkSharedAlbumAccess.mockResolvedValue(new Set([album.id]));
       mocks.album.getById.mockResolvedValue(getForAlbum(album));
       mocks.albumUser.delete.mockResolvedValue();
 
@@ -623,6 +634,7 @@ describe(AlbumService.name, () => {
     it('should allow a shared user to remove themselves using "me"', async () => {
       const user = UserFactory.create();
       const album = AlbumFactory.from().albumUser({ userId: user.id }).build();
+      mocks.access.album.checkSharedAlbumAccess.mockResolvedValue(new Set([album.id]));
       mocks.album.getById.mockResolvedValue(getForAlbum(album));
       mocks.albumUser.delete.mockResolvedValue();
 

@@ -10,6 +10,9 @@ import { BaseService } from 'src/services/base.service';
 @Injectable()
 export class PartnerService extends BaseService {
   async create(auth: AuthDto, { sharedWithId }: PartnerCreateDto): Promise<PartnerResponseDto> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, sharedWithId))) {
+      throw new BadRequestException('Partner not found');
+    }
     const partnerId: PartnerIds = { sharedById: auth.user.id, sharedWithId };
     const exists = await this.partnerRepository.get(partnerId);
     if (exists) {
@@ -21,6 +24,9 @@ export class PartnerService extends BaseService {
   }
 
   async remove(auth: AuthDto, sharedWithId: string): Promise<void> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, sharedWithId))) {
+      throw new BadRequestException('Partner not found');
+    }
     const partnerId: PartnerIds = { sharedById: auth.user.id, sharedWithId };
     const partner = await this.partnerRepository.get(partnerId);
     if (!partner) {
@@ -33,13 +39,24 @@ export class PartnerService extends BaseService {
   async search(auth: AuthDto, { direction }: PartnerSearchDto): Promise<PartnerResponseDto[]> {
     const partners = await this.partnerRepository.getAll(auth.user.id);
     const key = direction === PartnerDirection.SharedBy ? 'sharedById' : 'sharedWithId';
-    return partners
+    const activePartners = partners
       .filter((partner): partner is Partner => !!(partner.sharedBy && partner.sharedWith)) // Filter out soft deleted users
-      .filter((partner) => partner[key] === auth.user.id)
+      .filter((partner) => partner[key] === auth.user.id);
+    const safePartners = await Promise.all(
+      activePartners.map(async (partner) => {
+        const otherUserId = partner.sharedById === auth.user.id ? partner.sharedWithId : partner.sharedById;
+        return (await this.familyPolicy.getDiscoverableUser(auth.user.id, otherUserId)) ? partner : undefined;
+      }),
+    );
+    return safePartners
+      .filter((partner) => partner !== undefined)
       .map((partner) => this.mapPartner(partner, direction));
   }
 
   async update(auth: AuthDto, sharedById: string, dto: PartnerUpdateDto): Promise<PartnerResponseDto> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, sharedById))) {
+      throw new BadRequestException('Partner not found');
+    }
     await this.requireAccess({ auth, permission: Permission.PartnerUpdate, ids: [sharedById] });
     const partnerId: PartnerIds = { sharedById, sharedWithId: auth.user.id };
 

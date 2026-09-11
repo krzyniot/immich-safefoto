@@ -6,6 +6,31 @@ import { AlbumUserRole, AssetVisibility } from 'src/enum';
 import { DB } from 'src/schema';
 import { asUuid } from 'src/utils/database';
 
+const householdUserIds = (db: Kysely<DB>, userId: string) =>
+  db
+    .selectFrom('user as household_user')
+    .select('household_user.id')
+    .where('household_user.deletedAt', 'is', null)
+    .where('household_user.householdId', '=', (eb) =>
+      eb
+        .selectFrom('user as requester')
+        .select('requester.householdId')
+        .where('requester.id', '=', userId)
+        .where('requester.deletedAt', 'is', null),
+    );
+
+const householdAlbumIds = (db: Kysely<DB>, userId: string) =>
+  db
+    .selectFrom('album_user as requester_album')
+    .innerJoin('album_user as owner_album', (join) =>
+      join
+        .onRef('owner_album.albumId', '=', 'requester_album.albumId')
+        .on('owner_album.role', '=', AlbumUserRole.Owner),
+    )
+    .select('requester_album.albumId')
+    .where('requester_album.userId', '=', userId)
+    .where('owner_album.userId', 'in', householdUserIds(db, userId));
+
 class ActivityAccess {
   constructor(private db: Kysely<DB>) {}
 
@@ -42,6 +67,7 @@ class ActivityAccess {
           .on('album_user.role', '=', sql.lit(AlbumUserRole.Owner))
           .on('album_user.userId', '=', asUuid(userId)),
       )
+      .where('album.id', 'in', householdAlbumIds(this.db, userId))
       .where('activity.id', 'in', [...activityIds])
       .execute()
       .then((activities) => new Set(activities.map((activity) => activity.id)));
@@ -62,6 +88,7 @@ class ActivityAccess {
       .where('album.id', 'in', [...albumIds])
       .where('album.isActivityEnabled', '=', true)
       .where((eb) => eb('user.id', '=', userId))
+      .where('album.id', 'in', householdAlbumIds(this.db, userId))
       .where('album.deletedAt', 'is', null)
       .execute()
       .then((albums) => new Set(albums.map((album) => album.id)));
@@ -88,6 +115,7 @@ class AlbumAccess {
           .on('album_user.role', '=', sql.lit(AlbumUserRole.Owner))
           .on('album_user.userId', '=', userId),
       )
+      .where('album_user.userId', 'in', householdUserIds(this.db, userId))
       .where('album.deletedAt', 'is', null)
       .execute()
       .then((albums) => new Set(albums.map((album) => album.id)));
@@ -112,6 +140,7 @@ class AlbumAccess {
       .where('album.deletedAt', 'is', null)
       .where('user.id', '=', userId)
       .where('album_user.role', 'in', [...accessRole])
+      .where('album.id', 'in', householdAlbumIds(this.db, userId))
       .execute()
       .then((albums) => new Set(albums.map((album) => album.id)));
   }
@@ -163,6 +192,8 @@ class AssetAccess {
         ]),
       )
       .where('user.id', '=', userId)
+      .where('album.id', 'in', householdAlbumIds(this.db, userId))
+      .where('asset.ownerId', 'in', householdUserIds(this.db, userId))
       .where('album.deletedAt', 'is', null)
       .execute()
       .then((assets) => {
@@ -208,9 +239,13 @@ class AssetAccess {
       .innerJoin('user as sharedBy', (join) =>
         join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
       )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
       .innerJoin('asset', (join) => join.onRef('asset.ownerId', '=', 'sharedBy.id').on('asset.deletedAt', 'is', null))
       .select('asset.id')
       .where('partner.sharedWithId', '=', userId)
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .where((eb) =>
         eb.or([
           eb('asset.visibility', '=', sql.lit(AssetVisibility.Timeline)),
@@ -388,9 +423,16 @@ class TimelineAccess {
 
     return this.db
       .selectFrom('partner')
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
       .select('partner.sharedById')
       .where('partner.sharedById', 'in', [...partnerIds])
       .where('partner.sharedWithId', '=', userId)
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .execute()
       .then((partners) => new Set(partners.map((partner) => partner.sharedById)));
   }
@@ -466,9 +508,16 @@ class PartnerAccess {
 
     return this.db
       .selectFrom('partner')
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
       .select('partner.sharedById')
       .where('partner.sharedById', 'in', [...partnerIds])
       .where('partner.sharedWithId', '=', userId)
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .execute()
       .then((partners) => new Set(partners.map((partner) => partner.sharedById)));
   }

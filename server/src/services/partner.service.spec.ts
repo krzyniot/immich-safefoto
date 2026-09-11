@@ -13,6 +13,9 @@ describe(PartnerService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(PartnerService));
+    mocks.user.getInHousehold.mockImplementation((_userId, targetUserId) =>
+      Promise.resolve(UserFactory.create({ id: targetUserId })),
+    );
   });
 
   it('should work', () => {
