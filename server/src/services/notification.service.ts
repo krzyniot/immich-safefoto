@@ -13,6 +13,7 @@ import {
 } from 'src/dtos/notification.dto';
 import { SystemConfigSmtpDto } from 'src/dtos/system-config.dto';
 import {
+  AlbumUserRole,
   AssetFileType,
   JobName,
   JobStatus,
@@ -36,7 +37,10 @@ export class NotificationService extends BaseService {
 
   async search(auth: AuthDto, dto: NotificationSearchDto): Promise<NotificationDto[]> {
     const items = await this.notificationRepository.search(auth.user.id, dto);
-    return items.map((item) => mapNotification(item));
+    const visibleItems = await Promise.all(
+      items.map(async (item) => ((await this.isVisible(auth, item)) ? item : undefined)),
+    );
+    return visibleItems.filter((item) => item !== undefined).map((item) => mapNotification(item));
   }
 
   async updateAll(auth: AuthDto, dto: NotificationUpdateAllDto) {
@@ -57,11 +61,18 @@ export class NotificationService extends BaseService {
     if (!item) {
       throw new BadRequestException('Notification not found');
     }
+    if (!(await this.isVisible(auth, item))) {
+      throw new BadRequestException('Notification not found');
+    }
     return mapNotification(item);
   }
 
   async update(auth: AuthDto, id: string, dto: NotificationUpdateDto) {
     await this.requireAccess({ auth, ids: [id], permission: Permission.NotificationUpdate });
+    const [current] = await this.notificationRepository.search(auth.user.id, { id });
+    if (!current || !(await this.isVisible(auth, current))) {
+      throw new BadRequestException('Notification not found');
+    }
     const item = await this.notificationRepository.update(id, {
       readAt: dto.readAt,
     });
@@ -303,7 +314,7 @@ export class NotificationService extends BaseService {
   }
 
   @OnJob({ name: JobName.NotifyAlbumInvite, queue: QueueName.Notification })
-  async handleAlbumInvite({ id, recipientId, senderName }: JobOf<JobName.NotifyAlbumInvite>) {
+  async handleAlbumInvite({ id, recipientId }: JobOf<JobName.NotifyAlbumInvite>) {
     const album = await this.albumRepository.getById(id, { withAssets: false });
     if (!album) {
       return JobStatus.Skipped;
@@ -313,6 +324,15 @@ export class NotificationService extends BaseService {
     if (!recipient) {
       return JobStatus.Skipped;
     }
+    if (!(await this.canReceiveAlbumNotification(recipientId, album.id))) {
+      return JobStatus.Skipped;
+    }
+
+    const owners = album.albumUsers.filter(({ role }) => role === AlbumUserRole.Owner);
+    if (owners.length !== 1) {
+      return JobStatus.Skipped;
+    }
+    const senderName = owners[0].user.name;
 
     await this.sendAlbumLocalNotification(album, recipientId, NotificationType.AlbumInvite, senderName);
 
@@ -362,6 +382,9 @@ export class NotificationService extends BaseService {
 
     const recipient = await this.userRepository.get(recipientId, { withDeleted: false });
     if (!recipient) {
+      return JobStatus.Skipped;
+    }
+    if (!(await this.canReceiveAlbumNotification(recipientId, album.id))) {
       return JobStatus.Skipped;
     }
 
@@ -474,5 +497,40 @@ export class NotificationService extends BaseService {
     });
 
     this.websocketRepository.clientSend('on_notification', userId, mapNotification(item));
+  }
+
+  private async canReceiveAlbumNotification(userId: string, albumId: string): Promise<boolean> {
+    const ids = new Set([albumId]);
+    const owned = await this.accessRepository.album.checkOwnerAccess(userId, ids);
+    if (owned.has(albumId)) {
+      return true;
+    }
+    const shared = await this.accessRepository.album.checkSharedAlbumAccess(userId, ids, AlbumUserRole.Viewer);
+    return shared.has(albumId);
+  }
+
+  private async isVisible(
+    auth: AuthDto,
+    notification: { type: NotificationType; data: unknown | null },
+  ): Promise<boolean> {
+    if (notification.type !== NotificationType.AlbumInvite && notification.type !== NotificationType.AlbumUpdate) {
+      return true;
+    }
+
+    let data = notification.data;
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return false;
+      }
+    }
+    const albumId = data && typeof data === 'object' && 'albumId' in data ? data.albumId : undefined;
+    if (typeof albumId !== 'string') {
+      return false;
+    }
+
+    const allowed = await this.checkAccess({ auth, permission: Permission.AlbumRead, ids: [albumId] });
+    return allowed.has(albumId);
   }
 }

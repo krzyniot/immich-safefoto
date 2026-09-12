@@ -19,11 +19,17 @@ import { BaseService } from 'src/services/base.service';
 export class ActivityService extends BaseService {
   async getAll(auth: AuthDto, dto: ActivitySearchDto): Promise<ActivityResponseDto[]> {
     await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.albumId] });
+    const householdUsers = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
+    const userIds = householdUsers.map(({ id }) => id);
+    if (userIds.length === 0) {
+      return [];
+    }
     const activities = await this.activityRepository.search({
       userId: dto.userId,
       albumId: dto.albumId,
       assetId: dto.level === ReactionLevel.ALBUM ? null : dto.assetId,
       isLiked: dto.type && dto.type === ReactionType.LIKE,
+      userIds,
     });
 
     return activities.map((activity) => mapActivity(activity));
@@ -31,11 +37,19 @@ export class ActivityService extends BaseService {
 
   async getStatistics(auth: AuthDto, dto: ActivityDto): Promise<ActivityStatisticsResponseDto> {
     await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [dto.albumId] });
-    return await this.activityRepository.getStatistics({ albumId: dto.albumId, assetId: dto.assetId });
+    const householdUsers = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
+    const userIds = householdUsers.map(({ id }) => id);
+    if (userIds.length === 0) {
+      return { comments: 0, likes: 0 };
+    }
+    return await this.activityRepository.getStatistics({ albumId: dto.albumId, assetId: dto.assetId, userIds });
   }
 
   async create(auth: AuthDto, dto: ActivityCreateDto): Promise<MaybeDuplicate<ActivityResponseDto>> {
     await this.requireAccess({ auth, permission: Permission.ActivityCreate, ids: [dto.albumId] });
+    if (dto.assetId) {
+      await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [dto.assetId] });
+    }
 
     const common = {
       userId: auth.user.id,

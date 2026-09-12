@@ -24,7 +24,8 @@ from
   ) as "user" on true
   left join "asset" on "asset"."id" = "activity"."assetId"
 where
-  "activity"."albumId" = $1
+  "activity"."userId" in ($1)
+  and "activity"."albumId" = $2
   and "asset"."deletedAt" is null
 order by
   "activity"."createdAt" asc
@@ -77,7 +78,8 @@ from
   left join "asset" on "asset"."id" = "activity"."assetId"
 where
   "activity"."assetId" = $3
-  and "activity"."albumId" = $4
+  and "activity"."userId" in ($4)
+  and "activity"."albumId" = $5
   and (
     (
       "asset"."deletedAt" is null

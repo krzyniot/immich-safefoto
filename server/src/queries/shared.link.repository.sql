@@ -273,6 +273,14 @@ where
   )
   and "shared_link"."key" = $2
 
+-- SharedLinkRepository.getAssetIds
+select
+  "assetId"
+from
+  "shared_link_asset"
+where
+  "sharedLinkId" = $1
+
 -- SharedLinkRepository.getBySlug
 select
   "shared_link"."id",

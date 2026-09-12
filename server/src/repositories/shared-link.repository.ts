@@ -147,6 +147,16 @@ export class SharedLinkRepository {
     return this.authBuilder().where('shared_link.key', '=', key).executeTakeFirst();
   }
 
+  @GenerateSql({ params: [DummyValue.UUID] })
+  getAssetIds(id: string) {
+    return this.db
+      .selectFrom('shared_link_asset')
+      .select('assetId')
+      .where('sharedLinkId', '=', id)
+      .execute()
+      .then((rows) => rows.map(({ assetId }) => assetId));
+  }
+
   @GenerateSql({ params: [DummyValue.BUFFER] })
   getBySlug(slug: string) {
     return this.authBuilder().where('shared_link.slug', '=', slug).executeTakeFirst();

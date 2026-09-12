@@ -49,6 +49,10 @@ import { Point, transformPoints } from 'src/utils/transform';
 @Injectable()
 export class PersonService extends BaseService {
   async getAll(auth: AuthDto, dto: PersonSearchDto): Promise<PeopleResponseDto> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      return { people: [], hasNextPage: false, total: 0, hidden: 0 };
+    }
+
     const { withHidden = false, closestAssetId, closestPersonId, page, size } = dto;
     let closestFaceAssetId = closestAssetId;
     const pagination = {
@@ -57,6 +61,7 @@ export class PersonService extends BaseService {
     };
 
     if (closestPersonId) {
+      await this.requireAccess({ auth, permission: Permission.PersonRead, ids: [closestPersonId] });
       const person = await this.personRepository.getById(closestPersonId);
       if (!person?.faceAssetId) {
         throw new NotFoundException('Person not found');
@@ -175,6 +180,9 @@ export class PersonService extends BaseService {
   }
 
   async create(auth: AuthDto, dto: PersonCreateDto): Promise<PersonResponseDto> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      throw new BadRequestException('User not found');
+    }
     const person = await this.personRepository.create({
       ownerId: auth.user.id,
       name: dto.name,

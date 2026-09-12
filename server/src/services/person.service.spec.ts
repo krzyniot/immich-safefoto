@@ -28,6 +28,9 @@ describe(PersonService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(PersonService));
+    mocks.user.getInHousehold.mockImplementation((_, targetUserId) =>
+      Promise.resolve(UserFactory.create({ id: targetUserId })),
+    );
   });
 
   it('should be defined', () => {

@@ -46,6 +46,7 @@ class ActivityAccess {
       .select('activity.id')
       .where('activity.id', 'in', [...activityIds])
       .where('activity.userId', '=', userId)
+      .where('activity.userId', 'in', householdUserIds(this.db, userId))
       .execute()
       .then((activities) => new Set(activities.map((activity) => activity.id)));
   }
@@ -68,6 +69,7 @@ class ActivityAccess {
           .on('album_user.userId', '=', asUuid(userId)),
       )
       .where('album.id', 'in', householdAlbumIds(this.db, userId))
+      .where('activity.userId', 'in', householdUserIds(this.db, userId))
       .where('activity.id', 'in', [...activityIds])
       .execute()
       .then((activities) => new Set(activities.map((activity) => activity.id)));
@@ -474,6 +476,7 @@ class PersonAccess {
       .select('person.id')
       .where('person.id', 'in', [...personIds])
       .where('person.ownerId', '=', userId)
+      .where('person.ownerId', 'in', householdUserIds(this.db, userId))
       .execute()
       .then((persons) => new Set(persons.map((person) => person.id)));
   }
@@ -491,6 +494,7 @@ class PersonAccess {
       .leftJoin('asset', (join) => join.onRef('asset.id', '=', 'asset_face.assetId').on('asset.deletedAt', 'is', null))
       .where('asset_face.id', 'in', [...assetFaceIds])
       .where('asset.ownerId', '=', userId)
+      .where('asset.ownerId', 'in', householdUserIds(this.db, userId))
       .execute()
       .then((faces) => new Set(faces.map((face) => face.id)));
   }

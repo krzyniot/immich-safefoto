@@ -18,9 +18,16 @@ import { getExternalDomain, OpenGraphTags } from 'src/utils/misc';
 @Injectable()
 export class SharedLinkService extends BaseService {
   async getAll(auth: AuthDto, { id, albumId }: SharedLinkSearchDto): Promise<SharedLinkResponseDto[]> {
-    return this.sharedLinkRepository
-      .getAll({ userId: auth.user.id, id, albumId })
-      .then((links) => links.map((link) => mapSharedLink(link, { stripAssetMetadata: false })));
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      return [];
+    }
+    const links = await this.sharedLinkRepository.getAll({ userId: auth.user.id, id, albumId });
+    const safeLinks = await Promise.all(
+      links.map(async (link) => ((await this.hasCurrentAccess(auth, link)) ? link : undefined)),
+    );
+    return safeLinks
+      .filter((link) => link !== undefined)
+      .map((link) => mapSharedLink(link, { stripAssetMetadata: false }));
   }
 
   async login(auth: AuthDto, dto: SharedLinkLoginDto) {
@@ -62,10 +69,14 @@ export class SharedLinkService extends BaseService {
 
   async get(auth: AuthDto, id: string): Promise<SharedLinkResponseDto> {
     const sharedLink = await this.findOrFail(auth.user.id, id);
+    await this.requireCurrentAccess(auth, sharedLink);
     return mapSharedLink(sharedLink, { stripAssetMetadata: false });
   }
 
   async create(auth: AuthDto, dto: SharedLinkCreateDto): Promise<SharedLinkResponseDto> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      throw new BadRequestException('Shared link not found');
+    }
     switch (dto.type) {
       case SharedLinkType.Album: {
         if (!dto.albumId) {
@@ -117,7 +128,8 @@ export class SharedLinkService extends BaseService {
   }
 
   async update(auth: AuthDto, id: string, dto: SharedLinkEditDto) {
-    await this.findOrFail(auth.user.id, id);
+    const current = await this.findOrFail(auth.user.id, id);
+    await this.requireCurrentAccess(auth, current);
     try {
       const sharedLink = await this.sharedLinkRepository.update({
         id,
@@ -137,6 +149,9 @@ export class SharedLinkService extends BaseService {
   }
 
   async remove(auth: AuthDto, id: string): Promise<void> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      throw new BadRequestException('Shared link not found');
+    }
     const sharedLink = await this.findOrFail(auth.user.id, id);
     await this.sharedLinkRepository.remove(sharedLink.id);
   }
@@ -152,6 +167,7 @@ export class SharedLinkService extends BaseService {
 
   async addAssets(auth: AuthDto, id: string, dto: AssetIdsDto): Promise<AssetIdsResponseDto[]> {
     const sharedLink = await this.findOrFail(auth.user.id, id);
+    await this.requireCurrentAccess(auth, sharedLink);
     if (sharedLink.type !== SharedLinkType.Individual) {
       throw new BadRequestException('Invalid shared link type');
     }
@@ -190,6 +206,9 @@ export class SharedLinkService extends BaseService {
   }
 
   async removeAssets(auth: AuthDto, id: string, dto: AssetIdsDto): Promise<AssetIdsResponseDto[]> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      throw new BadRequestException('Shared link not found');
+    }
     const sharedLink = await this.findOrFail(auth.user.id, id);
 
     if (sharedLink.type !== SharedLinkType.Individual) {
@@ -237,5 +256,37 @@ export class SharedLinkService extends BaseService {
 
   private asToken(sharedLink: { id: string; password: string }) {
     return this.cryptoRepository.hashSha256(`${sharedLink.id}-${sharedLink.password}`).toString('base64');
+  }
+
+  private async hasCurrentAccess(
+    auth: AuthDto,
+    sharedLink: { id: string; type: SharedLinkType; albumId: string | null },
+  ) {
+    if (sharedLink.type === SharedLinkType.Album) {
+      if (!sharedLink.albumId) {
+        return false;
+      }
+      const allowed = await this.checkAccess({ auth, permission: Permission.AlbumShare, ids: [sharedLink.albumId] });
+      return allowed.has(sharedLink.albumId);
+    }
+
+    const assetIds = await this.sharedLinkRepository.getAssetIds(sharedLink.id);
+    if (assetIds.length === 0) {
+      return true;
+    }
+    const allowed = await this.checkAccess({ auth, permission: Permission.AssetShare, ids: assetIds });
+    return assetIds.every((assetId) => allowed.has(assetId));
+  }
+
+  private async requireCurrentAccess(
+    auth: AuthDto,
+    sharedLink: { id: string; type: SharedLinkType; albumId: string | null },
+  ) {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      throw new BadRequestException('Shared link not found');
+    }
+    if (!(await this.hasCurrentAccess(auth, sharedLink))) {
+      throw new BadRequestException('Shared link not found');
+    }
   }
 }

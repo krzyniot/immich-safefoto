@@ -70,19 +70,21 @@ export class MapRepository {
     this.logger.log('Geodata import completed');
   }
 
-  @GenerateSql({ params: [DummyValue.UUID] })
-  getAlbumMapMarkers(albumId: string) {
+  @GenerateSql({ params: [DummyValue.UUID, [DummyValue.UUID]] })
+  getAlbumMapMarkers(albumId: string, householdUserIds?: string[]) {
     return this.mapMarkersQuery()
       .innerJoin('album_asset', 'asset.id', 'album_asset.assetId')
       .where('album_asset.albumId', '=', albumId)
+      .$if(!!householdUserIds, (query) => query.where('asset.ownerId', 'in', householdUserIds!))
       .execute();
   }
 
-  @GenerateSql({ params: [DummyValue.UUID, [DummyValue.UUID], [DummyValue.UUID]] })
+  @GenerateSql({ params: [DummyValue.UUID, [DummyValue.UUID], [DummyValue.UUID], [DummyValue.UUID]] })
   getMapMarkers(
     authUserId: string,
     ownerIds: string[],
     albumIds: string[],
+    householdUserIds: string[],
     { isArchived, isFavorite, fileCreatedAfter, fileCreatedBefore }: MapMarkerSearchOptions = {},
   ) {
     return this.mapMarkersQuery()
@@ -100,6 +102,7 @@ export class MapRepository {
       .$if(isFavorite !== undefined, (q) => q.where('isFavorite', '=', isFavorite!))
       .$if(fileCreatedAfter !== undefined, (q) => q.where('fileCreatedAt', '>=', fileCreatedAfter!))
       .$if(fileCreatedBefore !== undefined, (q) => q.where('fileCreatedAt', '<=', fileCreatedBefore!))
+      .where('asset.ownerId', 'in', householdUserIds)
       .where((eb) => {
         const expression: Expression<SqlBool>[] = [];
 

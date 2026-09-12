@@ -8,6 +8,23 @@ from
 where
   "activity"."id" in ($1)
   and "activity"."userId" = $2
+  and "activity"."userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $3
+          and "requester"."deletedAt" is null
+      )
+  )
 
 -- AccessRepository.activity.checkAlbumOwnerAccess
 select
@@ -47,7 +64,24 @@ where
           )
       )
   )
-  and "activity"."id" in ($5)
+  and "activity"."userId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $5
+          and "requester"."deletedAt" is null
+      )
+  )
+  and "activity"."id" in ($6)
 
 -- AccessRepository.activity.checkCreateAccess
 select
@@ -340,6 +374,23 @@ from
 where
   "person"."id" in ($1)
   and "person"."ownerId" = $2
+  and "person"."ownerId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $3
+          and "requester"."deletedAt" is null
+      )
+  )
 
 -- AccessRepository.person.checkFaceOwnerAccess
 select
@@ -351,6 +402,23 @@ from
 where
   "asset_face"."id" in ($1)
   and "asset"."ownerId" = $2
+  and "asset"."ownerId" in (
+    select
+      "household_user"."id"
+    from
+      "user" as "household_user"
+    where
+      "household_user"."deletedAt" is null
+      and "household_user"."householdId" = (
+        select
+          "requester"."householdId"
+        from
+          "user" as "requester"
+        where
+          "requester"."id" = $3
+          and "requester"."deletedAt" is null
+      )
+  )
 
 -- AccessRepository.partner.checkUpdateAccess
 select

@@ -118,7 +118,13 @@ export class AlbumService extends BaseService {
       return [];
     }
 
-    return this.mapRepository.getAlbumMapMarkers(id);
+    const householdUsers = auth.sharedLink ? undefined : await this.familyPolicy.getDiscoverableUsers(auth.user.id);
+    const householdUserIds = householdUsers?.map(({ id: userId }) => userId);
+    if (!auth.sharedLink && householdUserIds?.length === 0) {
+      return [];
+    }
+
+    return this.mapRepository.getAlbumMapMarkers(id, householdUserIds);
   }
 
   async create(auth: AuthDto, dto: CreateAlbumDto): Promise<AlbumResponseDto> {

@@ -4,6 +4,7 @@ import { SearchSuggestionType } from 'src/dtos/search.dto';
 import { SearchService } from 'src/services/search.service';
 import { AssetFactory } from 'test/factories/asset.factory';
 import { AuthFactory } from 'test/factories/auth.factory';
+import { UserFactory } from 'test/factories/user.factory';
 import { authStub } from 'test/fixtures/auth.stub';
 import { getForAsset } from 'test/mappers';
 import { newTestService, ServiceMocks } from 'test/utils';
@@ -18,6 +19,10 @@ describe(SearchService.name, () => {
   beforeEach(() => {
     ({ sut, mocks } = newTestService(SearchService));
     mocks.partner.getAll.mockResolvedValue([]);
+    mocks.user.getInHousehold.mockImplementation((_, targetUserId) =>
+      Promise.resolve(UserFactory.create({ id: targetUserId })),
+    );
+    mocks.user.getByHousehold.mockImplementation((userId) => Promise.resolve([UserFactory.create({ id: userId })]));
   });
 
   it('should work', () => {

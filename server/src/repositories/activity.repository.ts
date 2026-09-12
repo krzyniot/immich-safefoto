@@ -14,15 +14,16 @@ export interface ActivitySearch {
   assetId?: string | null;
   userId?: string;
   isLiked?: boolean;
+  userIds?: string[];
 }
 
 @Injectable()
 export class ActivityRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
 
-  @GenerateSql({ params: [{ albumId: DummyValue.UUID }] })
+  @GenerateSql({ params: [{ albumId: DummyValue.UUID, userIds: [DummyValue.UUID] }] })
   search(options: ActivitySearch) {
-    const { userId, assetId, albumId, isLiked } = options;
+    const { userId, userIds, assetId, albumId, isLiked } = options;
 
     return this.db
       .selectFrom('activity')
@@ -37,6 +38,7 @@ export class ActivityRepository {
       .select((eb) => eb.fn.toJson('user').as('user'))
       .leftJoin('asset', 'asset.id', 'activity.assetId')
       .$if(!!userId, (qb) => qb.where('activity.userId', '=', userId!))
+      .$if(!!userIds, (qb) => qb.where('activity.userId', 'in', userIds!))
       .$if(assetId === null, (qb) => qb.where('assetId', 'is', null))
       .$if(!!assetId, (qb) => qb.where('activity.assetId', '=', assetId!))
       .$if(!!albumId, (qb) => qb.where('activity.albumId', '=', albumId!))
@@ -66,13 +68,15 @@ export class ActivityRepository {
     await this.db.deleteFrom('activity').where('id', '=', asUuid(id)).execute();
   }
 
-  @GenerateSql({ params: [{ albumId: DummyValue.UUID, assetId: DummyValue.UUID }] })
+  @GenerateSql({ params: [{ albumId: DummyValue.UUID, assetId: DummyValue.UUID, userIds: [DummyValue.UUID] }] })
   async getStatistics({
     albumId,
     assetId,
+    userIds,
   }: {
     albumId: string;
     assetId?: string;
+    userIds?: string[];
   }): Promise<{ comments: number; likes: number }> {
     const result = await this.db
       .selectFrom('activity')
@@ -83,6 +87,7 @@ export class ActivityRepository {
       .innerJoin('user', (join) => join.onRef('user.id', '=', 'activity.userId').on('user.deletedAt', 'is', null))
       .leftJoin('asset', 'asset.id', 'activity.assetId')
       .$if(!!assetId, (qb) => qb.where('activity.assetId', '=', assetId!))
+      .$if(!!userIds, (qb) => qb.where('activity.userId', 'in', userIds!))
       .where('activity.albumId', '=', albumId)
       .where(({ or, and, eb }) =>
         or([

@@ -3,6 +3,7 @@ import { AlbumFactory } from 'test/factories/album.factory';
 import { AssetFactory } from 'test/factories/asset.factory';
 import { AuthFactory } from 'test/factories/auth.factory';
 import { PartnerFactory } from 'test/factories/partner.factory';
+import { UserFactory } from 'test/factories/user.factory';
 import { userStub } from 'test/fixtures/user.stub';
 import { getForPartner } from 'test/mappers';
 import { newTestService, ServiceMocks } from 'test/utils';
@@ -13,6 +14,7 @@ describe(MapService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(MapService));
+    mocks.user.getByHousehold.mockImplementation((userId) => Promise.resolve([UserFactory.create({ id: userId })]));
   });
 
   describe('getMapMarkers', () => {
@@ -54,6 +56,10 @@ describe(MapService.name, () => {
         country: asset.exifInfo.country,
       };
       mocks.partner.getAll.mockResolvedValue([getForPartner(partner)]);
+      mocks.user.getByHousehold.mockResolvedValue([
+        UserFactory.create({ id: auth.user.id }),
+        UserFactory.create({ id: partner.sharedById }),
+      ]);
       mocks.map.getMapMarkers.mockResolvedValue([marker]);
 
       const markers = await sut.getMapMarkers(auth, { withPartners: true });
@@ -62,6 +68,7 @@ describe(MapService.name, () => {
         auth.user.id,
         [auth.user.id, partner.sharedById],
         expect.arrayContaining([]),
+        expect.arrayContaining([auth.user.id, partner.sharedById]),
         { withPartners: true },
       );
       expect(markers).toHaveLength(1);
@@ -86,12 +93,37 @@ describe(MapService.name, () => {
       const album1 = AlbumFactory.create();
       const album2 = AlbumFactory.from().albumUser({ userId: userStub.user1.id }).build();
       mocks.album.getAllIds.mockResolvedValue([album1.id, album2.id]);
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album1.id]));
+      mocks.access.album.checkSharedAlbumAccess.mockResolvedValue(new Set([album2.id]));
 
       const markers = await sut.getMapMarkers(auth, { withSharedAlbums: true });
 
       expect(markers).toHaveLength(1);
       expect(markers[0]).toEqual(marker);
       expect(mocks.album.getAllIds).toHaveBeenCalledWith(auth.user.id);
+      expect(mocks.map.getMapMarkers).toHaveBeenCalledWith(
+        auth.user.id,
+        [auth.user.id],
+        expect.arrayContaining([album1.id, album2.id]),
+        [auth.user.id],
+        { withSharedAlbums: true },
+      );
+    });
+
+    it('should filter stale foreign partners and albums before querying map markers', async () => {
+      const auth = AuthFactory.create();
+      const partner = PartnerFactory.create({ sharedWithId: auth.user.id });
+      const foreignAlbum = AlbumFactory.create();
+      mocks.partner.getAll.mockResolvedValue([getForPartner(partner)]);
+      mocks.album.getAllIds.mockResolvedValue([foreignAlbum.id]);
+      mocks.map.getMapMarkers.mockResolvedValue([]);
+
+      await sut.getMapMarkers(auth, { withPartners: true, withSharedAlbums: true });
+
+      expect(mocks.map.getMapMarkers).toHaveBeenCalledWith(auth.user.id, [auth.user.id], [], [auth.user.id], {
+        withPartners: true,
+        withSharedAlbums: true,
+      });
     });
   });
 

@@ -7,6 +7,7 @@ import { LoggingRepository } from 'src/repositories/logging.repository';
 import { SharedLinkAssetRepository } from 'src/repositories/shared-link-asset.repository';
 import { SharedLinkRepository } from 'src/repositories/shared-link.repository';
 import { StorageRepository } from 'src/repositories/storage.repository';
+import { UserRepository } from 'src/repositories/user.repository';
 import { DB } from 'src/schema';
 import { SharedLinkService } from 'src/services/shared-link.service';
 import { newMediumService } from 'test/medium.factory';
@@ -18,7 +19,7 @@ let defaultDatabase: Kysely<DB>;
 const setup = (db?: Kysely<DB>) => {
   return newMediumService(SharedLinkService, {
     database: db || defaultDatabase,
-    real: [AccessRepository, DatabaseRepository, SharedLinkRepository, SharedLinkAssetRepository],
+    real: [AccessRepository, DatabaseRepository, SharedLinkRepository, SharedLinkAssetRepository, UserRepository],
     mock: [LoggingRepository, StorageRepository],
   });
 };

@@ -29,6 +29,9 @@ export class SearchService extends BaseService {
   private embeddingCache = new LRUMap<string, string>(100);
 
   async searchPerson(auth: AuthDto, dto: SearchPeopleDto): Promise<PersonResponseDto[]> {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      return [];
+    }
     const people = await this.personRepository.getByName(auth.user.id, dto.name, { withHidden: dto.withHidden });
     return people.map((person) => mapPerson(person));
   }
@@ -39,6 +42,9 @@ export class SearchService extends BaseService {
   }
 
   async getExploreData(auth: AuthDto) {
+    if (!(await this.familyPolicy.getDiscoverableUser(auth.user.id, auth.user.id))) {
+      return [];
+    }
     const options = { maxFields: 12, minAssetsPerField: 5 };
 
     const cities = await this.assetRepository.getAssetIdByCity(auth.user.id, options);
@@ -77,6 +83,7 @@ export class SearchService extends BaseService {
 
     if (dto.albumIds && dto.albumIds.length > 0) {
       await this.requireAccess({ auth, ids: dto.albumIds, permission: Permission.AlbumRead });
+      userIds = auth.sharedLink ? undefined : await this.getHouseholdUserIds(auth);
     } else {
       userIds = await this.getUserIdsToSearch(auth, dto.visibility);
     }
@@ -224,6 +231,11 @@ export class SearchService extends BaseService {
   }
 
   private async getUserIdsToSearch(auth: AuthDto, visibility?: AssetVisibility): Promise<string[]> {
+    const householdUserIds = await this.getHouseholdUserIds(auth);
+    if (!householdUserIds.includes(auth.user.id)) {
+      return [];
+    }
+
     // Locked assets are personal. Never include partner IDs, regardless of A's elevated session.
     if (visibility === AssetVisibility.Locked) {
       return [auth.user.id];
@@ -233,7 +245,13 @@ export class SearchService extends BaseService {
       repository: this.partnerRepository,
       timelineEnabled: true,
     });
-    return [auth.user.id, ...partnerIds];
+    const householdUserIdSet = new Set(householdUserIds);
+    return [auth.user.id, ...partnerIds.filter((id) => householdUserIdSet.has(id))];
+  }
+
+  private async getHouseholdUserIds(auth: AuthDto): Promise<string[]> {
+    const householdUsers = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
+    return householdUsers.map(({ id }) => id);
   }
 
   private mapResponse(assets: MapAsset[], nextPage: string | null, options: AssetMapOptions): SearchResponseDto {

@@ -6,6 +6,7 @@ import { SharedLinkService } from 'src/services/shared-link.service';
 import { AlbumFactory } from 'test/factories/album.factory';
 import { AssetFactory } from 'test/factories/asset.factory';
 import { SharedLinkFactory } from 'test/factories/shared-link.factory';
+import { UserFactory } from 'test/factories/user.factory';
 import { authStub } from 'test/fixtures/auth.stub';
 import { sharedLinkStub } from 'test/fixtures/shared-link.stub';
 import { getForSharedLink } from 'test/mappers';
@@ -18,6 +19,10 @@ describe(SharedLinkService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(SharedLinkService));
+    mocks.user.getInHousehold.mockImplementation((_, targetUserId) =>
+      Promise.resolve(UserFactory.create({ id: targetUserId })),
+    );
+    mocks.sharedLink.getAssetIds.mockResolvedValue([]);
   });
 
   it('should work', () => {

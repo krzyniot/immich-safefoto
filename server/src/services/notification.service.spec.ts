@@ -57,6 +57,7 @@ describe(NotificationService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(NotificationService));
+    mocks.access.album.checkSharedAlbumAccess.mockImplementation((_, albumIds) => Promise.resolve(albumIds));
   });
 
   it('should work', () => {
