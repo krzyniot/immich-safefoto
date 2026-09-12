@@ -86,6 +86,7 @@ void main() {
     mockSyncMigrationRepo = MockSyncMigrationRepository();
 
     when(() => mockAbortCallbackWrapper()).thenReturn(false);
+    when(() => mockResetCallbackWrapper()).thenReturn(false);
 
     when(
       () => mockSyncApiRepo.streamChanges(

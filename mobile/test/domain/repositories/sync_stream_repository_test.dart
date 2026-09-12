@@ -17,7 +17,7 @@ import 'package:immich_mobile/infrastructure/entities/remote_album_user.entity.d
 import 'package:immich_mobile/infrastructure/entities/settings.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_stream.repository.dart';
-import 'package:openapi/api.dart';
+import 'package:openapi/api.dart' hide AlbumUserRole;
 
 SyncUserV1 _createUser({String id = 'user-1'}) {
   return SyncUserV1(
