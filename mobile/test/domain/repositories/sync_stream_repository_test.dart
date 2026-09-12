@@ -3,8 +3,18 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/domain/models/album/album.model.dart';
 import 'package:immich_mobile/domain/models/album/local_album.model.dart';
+import 'package:immich_mobile/domain/models/asset/base_asset.model.dart' as domain;
+import 'package:immich_mobile/domain/models/settings_key.dart';
+import 'package:immich_mobile/infrastructure/entities/asset_face.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/entities/local_album.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/local_album_asset.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/local_asset.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/partner.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/person.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/entities/remote_album.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/remote_album_asset.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/remote_album_user.entity.drift.dart';
+import 'package:immich_mobile/infrastructure/entities/settings.entity.drift.dart';
 import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_stream.repository.dart';
 import 'package:openapi/api.dart';
@@ -190,6 +200,158 @@ void main() {
   });
 
   group('SyncStreamRepository - reset()', () {
+    test('SF-FAM-MOB-001 removes remote projections but preserves device assets', () async {
+      await sut.updateUsersV1([_createUser(id: 'foreign-user')]);
+      await sut.updateAssetsV1([
+        _createAsset(
+          id: 'foreign-asset',
+          checksum: 'foreign-checksum',
+          fileName: 'foreign.jpg',
+          ownerId: 'foreign-user',
+        ),
+      ]);
+      await sut.updateAssetsExifV1([
+        _createExif(assetId: 'foreign-asset', width: 100, height: 100, orientation: '1'),
+      ]);
+      await db.remoteAlbumEntity.insertOne(
+        RemoteAlbumEntityCompanion.insert(id: 'foreign-album', name: 'Foreign', order: AlbumAssetOrder.desc),
+      );
+      await db.remoteAlbumAssetEntity.insertOne(
+        RemoteAlbumAssetEntityCompanion.insert(assetId: 'foreign-asset', albumId: 'foreign-album'),
+      );
+      await db.remoteAlbumUserEntity.insertOne(
+        RemoteAlbumUserEntityCompanion.insert(
+          albumId: 'foreign-album',
+          userId: 'foreign-user',
+          role: AlbumUserRole.owner,
+        ),
+      );
+      await db.localAssetEntity.insertOne(
+        LocalAssetEntityCompanion.insert(
+          id: 'device-asset',
+          name: 'device.jpg',
+          type: domain.AssetType.image,
+          checksum: const drift.Value('device-checksum'),
+        ),
+      );
+
+      await sut.reset();
+
+      expect(await db.userEntity.select().get(), isEmpty);
+      expect(await db.remoteAlbumEntity.select().get(), isEmpty);
+      expect(await db.remoteAssetEntity.select().get(), isEmpty);
+      expect(await db.remoteExifEntity.select().get(), isEmpty);
+      expect(await db.remoteAlbumAssetEntity.select().get(), isEmpty);
+      expect(await db.remoteAlbumUserEntity.select().get(), isEmpty);
+      expect(await db.localAssetEntity.select().get(), hasLength(1));
+      expect((await db.localAssetEntity.select().getSingle()).id, 'device-asset');
+    });
+
+    test('SF-FAM-MOB-003 reset then resync cannot retain foreign user, album, or asset rows', () async {
+      await sut.updateUsersV1([_createUser(id: 'foreign-user')]);
+      await sut.updateAssetsV1([
+        _createAsset(
+          id: 'foreign-asset',
+          checksum: 'foreign-checksum',
+          fileName: 'foreign.jpg',
+          ownerId: 'foreign-user',
+        ),
+      ]);
+      await db.remoteAlbumEntity.insertOne(
+        RemoteAlbumEntityCompanion.insert(id: 'foreign-album', name: 'Foreign', order: AlbumAssetOrder.desc),
+      );
+
+      await sut.reset();
+      await sut.updateUsersV1([_createUser(id: 'allowed-user')]);
+      await sut.updateAssetsV1([
+        _createAsset(
+          id: 'allowed-asset',
+          checksum: 'allowed-checksum',
+          fileName: 'allowed.jpg',
+          ownerId: 'allowed-user',
+        ),
+      ]);
+      await db.remoteAlbumEntity.insertOne(
+        RemoteAlbumEntityCompanion.insert(id: 'allowed-album', name: 'Allowed', order: AlbumAssetOrder.desc),
+      );
+
+      expect((await db.userEntity.select().get()).map((row) => row.id), ['allowed-user']);
+      expect((await db.remoteAlbumEntity.select().get()).map((row) => row.id), ['allowed-album']);
+      expect((await db.remoteAssetEntity.select().get()).map((row) => row.id), ['allowed-asset']);
+    });
+
+    test('SF-FAM-MOB-004 reset removes stale partner projections', () async {
+      await sut.updateUsersV1([_createUser(id: 'current-user'), _createUser(id: 'foreign-user')]);
+      await db.partnerEntity.insertOne(
+        PartnerEntityCompanion.insert(sharedById: 'foreign-user', sharedWithId: 'current-user'),
+      );
+
+      await sut.reset();
+
+      expect(await db.partnerEntity.select().get(), isEmpty);
+    });
+
+    test('SF-FAM-MOB-005 reset removes stale people and face projections', () async {
+      await sut.updateUsersV1([_createUser(id: 'foreign-user')]);
+      await sut.updateAssetsV1([
+        _createAsset(
+          id: 'foreign-asset',
+          checksum: 'foreign-checksum',
+          fileName: 'foreign.jpg',
+          ownerId: 'foreign-user',
+        ),
+      ]);
+      await db.personEntity.insertOne(
+        PersonEntityCompanion.insert(
+          id: 'foreign-person',
+          ownerId: 'foreign-user',
+          name: 'Foreign Person',
+          isFavorite: false,
+          isHidden: false,
+        ),
+      );
+      await db.assetFaceEntity.insertOne(
+        AssetFaceEntityCompanion.insert(
+          id: 'foreign-face',
+          assetId: 'foreign-asset',
+          personId: const drift.Value('foreign-person'),
+          imageWidth: 100,
+          imageHeight: 100,
+          boundingBoxX1: 1,
+          boundingBoxY1: 1,
+          boundingBoxX2: 50,
+          boundingBoxY2: 50,
+          sourceType: 'machine-learning',
+        ),
+      );
+
+      await sut.reset();
+
+      expect(await db.personEntity.select().get(), isEmpty);
+      expect(await db.assetFaceEntity.select().get(), isEmpty);
+    });
+
+    test('SF-FAM-MOB-007 reset preserves backup selection and settings', () async {
+      await db.localAlbumEntity.insertOne(
+        LocalAlbumEntityCompanion.insert(id: 'camera', name: 'Camera', backupSelection: BackupSelection.selected),
+      );
+      await db.localAssetEntity.insertOne(
+        LocalAssetEntityCompanion.insert(id: 'device-asset', name: 'device.jpg', type: domain.AssetType.image),
+      );
+      await db.localAlbumAssetEntity.insertOne(
+        LocalAlbumAssetEntityCompanion.insert(assetId: 'device-asset', albumId: 'camera'),
+      );
+      await db.settingsEntity.insertOne(
+        SettingsEntityCompanion.insert(key: SettingsKey.backupEnabled.name, value: const drift.Value('true')),
+      );
+
+      await sut.reset();
+
+      expect((await db.localAlbumEntity.select().getSingle()).backupSelection, BackupSelection.selected);
+      expect(await db.localAlbumAssetEntity.select().get(), hasLength(1));
+      expect((await db.settingsEntity.select().getSingle()).value, 'true');
+    });
+
     test('nulls linkedRemoteAlbumId on localAlbumEntity so FK refs do not dangle', () async {
       const localAlbumId = 'local-1';
       const remoteAlbumId = 'remote-1';

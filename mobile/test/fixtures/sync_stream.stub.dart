@@ -2,6 +2,12 @@ import 'package:immich_mobile/domain/models/sync_event.model.dart';
 import 'package:openapi/api.dart';
 
 abstract final class SyncStreamStub {
+  static const syncResetV1 = SyncEvent(
+    type: SyncEntityType.syncResetV1,
+    data: <String, Object>{},
+    ack: 'reset',
+  );
+
   static final userV1Admin = SyncEvent(
     type: SyncEntityType.userV1,
     data: SyncUserV1(

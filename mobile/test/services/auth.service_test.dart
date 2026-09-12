@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
+import 'package:immich_mobile/infrastructure/repositories/settings.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
 import 'package:immich_mobile/models/auth/auxilary_endpoint.model.dart';
 import 'package:immich_mobile/services/auth.service.dart';
@@ -21,6 +22,7 @@ void main() {
   late MockApiService apiService;
   late MockNetworkService networkService;
   late MockBackgroundSyncManager backgroundSyncManager;
+  late MockBackgroundUploadService backgroundUploadService;
   late Drift db;
 
   setUp(() async {
@@ -29,12 +31,14 @@ void main() {
     apiService = MockApiService();
     networkService = MockNetworkService();
     backgroundSyncManager = MockBackgroundSyncManager();
+    backgroundUploadService = MockBackgroundUploadService();
     sut = AuthService(
       authApiRepository,
       authRepository,
       apiService,
       networkService,
       backgroundSyncManager,
+      backgroundUploadService,
     );
 
     registerFallbackValue(Uri());
@@ -44,6 +48,35 @@ void main() {
     WidgetsFlutterBinding.ensureInitialized();
     db = Drift(DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true));
     await StoreService.init(storeRepository: DriftStoreRepository(db));
+    await SettingsRepository.ensureInitialized(db);
+  });
+
+  test('SF-FAM-MOB-006 invalid session clears account cache and account-bound upload work', () async {
+    await Store.put(StoreKey.accessToken, 'old-account-token');
+    await SettingsRepository.instance.write(SettingsKey.backupEnabled, true);
+    when(() => backgroundSyncManager.cancel()).thenAnswer((_) async {});
+    when(() => backgroundUploadService.cancel()).thenAnswer((_) async => 0);
+    when(() => authRepository.clearLocalData()).thenAnswer((_) async {});
+
+    await sut.clearLocalData();
+
+    expect(Store.tryGet(StoreKey.accessToken), isNull);
+    expect(SettingsRepository.instance.appConfig.backup.enabled, isFalse);
+    verify(() => backgroundSyncManager.cancel()).called(1);
+    verify(() => backgroundUploadService.cancel()).called(1);
+    verify(() => authRepository.clearLocalData()).called(1);
+  });
+
+  test('SF-FAM-MOB-006 cache cleanup remains fail-closed when upload cancellation fails', () async {
+    await Store.put(StoreKey.accessToken, 'old-account-token');
+    when(() => backgroundSyncManager.cancel()).thenAnswer((_) async {});
+    when(() => backgroundUploadService.cancel()).thenAnswer((_) async => throw Exception('queue failure'));
+    when(() => authRepository.clearLocalData()).thenAnswer((_) async {});
+
+    await expectLater(sut.clearLocalData(), throwsException);
+
+    expect(Store.tryGet(StoreKey.accessToken), isNull);
+    verify(() => authRepository.clearLocalData()).called(1);
   });
 
   tearDownAll(() async {

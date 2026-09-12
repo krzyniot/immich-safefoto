@@ -174,6 +174,18 @@ void main() {
       expect(result, isEmpty);
     });
 
+    test('SF-FAM-MOB-008 rebuilt remote checksum prevents a full reupload after sync reset', () async {
+      final album = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);
+      final local = await ctx.newLocalAsset();
+      await ctx.newLocalAlbumAsset(albumId: album.id, assetId: local.id);
+
+      expect(await sut.getCandidates(userId), hasLength(1));
+
+      await ctx.newRemoteAsset(ownerId: userId, checksum: local.checksum!);
+
+      expect(await sut.getCandidates(userId), isEmpty);
+    });
+
     test('includes asset backed up for a different user', () async {
       final otherUser = await ctx.newUser();
       final album = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);

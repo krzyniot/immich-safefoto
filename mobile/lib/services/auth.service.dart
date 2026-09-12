@@ -14,6 +14,7 @@ import 'package:immich_mobile/providers/background_sync.provider.dart';
 import 'package:immich_mobile/repositories/auth.repository.dart';
 import 'package:immich_mobile/repositories/auth_api.repository.dart';
 import 'package:immich_mobile/services/api.service.dart';
+import 'package:immich_mobile/services/background_upload.service.dart';
 import 'package:immich_mobile/services/network.service.dart';
 import 'package:logging/logging.dart';
 import 'package:openapi/api.dart';
@@ -25,6 +26,7 @@ final authServiceProvider = Provider(
     ref.watch(apiServiceProvider),
     ref.watch(networkServiceProvider),
     ref.watch(backgroundSyncProvider),
+    ref.watch(backgroundUploadServiceProvider),
   ),
 );
 
@@ -34,6 +36,7 @@ class AuthService {
   final ApiService _apiService;
   final NetworkService _networkService;
   final BackgroundSyncManager _backgroundSyncManager;
+  final BackgroundUploadService _backgroundUploadService;
   final _log = Logger("AuthService");
 
   AuthService(
@@ -42,6 +45,7 @@ class AuthService {
     this._apiService,
     this._networkService,
     this._backgroundSyncManager,
+    this._backgroundUploadService,
   );
 
   /// Validates the provided server URL by resolving and setting the endpoint.
@@ -99,14 +103,13 @@ class AuthService {
       await clearLocalData().catchError((error, stackTrace) {
         _log.severe("Error clearing local data", error, stackTrace);
       });
-
-      await SettingsRepository.instance.write(SettingsKey.backupEnabled, false);
     }
   }
 
   /// Clears all local authentication-related data.
   ///
   /// This method performs a concurrent deletion of:
+  /// - Background sync and account-bound upload tasks
   /// - Authentication repository data
   /// - Current user information
   /// - Access token
@@ -114,12 +117,16 @@ class AuthService {
   ///
   /// All deletions are executed in parallel using [Future.wait].
   Future<void> clearLocalData() async {
-    // Cancel any ongoing background sync operations before clearing data
-    await _backgroundSyncManager.cancel();
+    // Schedule every cleanup even when one subsystem fails. Future.wait waits for
+    // all operations before surfacing an error, so a failed queue cancellation
+    // cannot leave the old token or remote projections behind.
     await Future.wait([
+      _backgroundSyncManager.cancel(),
+      _backgroundUploadService.cancel(),
       _authRepository.clearLocalData(),
       Store.delete(StoreKey.currentUser),
       Store.delete(StoreKey.accessToken),
+      SettingsRepository.instance.write(SettingsKey.backupEnabled, false),
       SettingsRepository.instance.clear(const [
         .networkAutoEndpointSwitching,
         .networkPreferredWifiName,

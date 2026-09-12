@@ -14,7 +14,6 @@ import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/user.provider.dart';
 import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/services/auth.service.dart';
-import 'package:immich_mobile/services/background_upload.service.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
 import 'package:immich_mobile/services/secure_storage.service.dart';
 import 'package:immich_mobile/services/widget.service.dart';
@@ -92,7 +91,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _widgetService.clearCredentials();
 
       await _authService.logout();
-      await _ref.read(backgroundUploadServiceProvider).cancel();
       _ref.read(foregroundUploadServiceProvider).cancel();
     } finally {
       await _cleanUp();

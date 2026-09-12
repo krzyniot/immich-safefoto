@@ -117,6 +117,7 @@ void main() {
     ).thenAnswer((_) async => ServerVersionResponseDto(major: 1, minor: 132, patch_: 0, prerelease: null));
 
     when(() => mockSyncStreamRepo.updateUsersV1(any())).thenAnswer(successHandler);
+    when(() => mockSyncStreamRepo.reset()).thenAnswer((_) async {});
     when(() => mockSyncStreamRepo.deleteUsersV1(any())).thenAnswer(successHandler);
     when(() => mockSyncStreamRepo.updatePartnerV1(any())).thenAnswer(successHandler);
     when(() => mockSyncStreamRepo.deletePartnerV1(any())).thenAnswer(successHandler);
@@ -181,6 +182,56 @@ void main() {
   }
 
   group("SyncStreamService - _handleEvents", () {
+    test('SF-FAM-MOB-002 SyncResetV1 resets server projections without deleting device media', () async {
+      await simulateEvents([SyncStreamStub.syncResetV1]);
+
+      verify(() => mockSyncStreamRepo.reset()).called(1);
+      verify(() => mockSyncApiRepo.ack(['reset'])).called(1);
+      verifyNever(() => mockAssetMediaRepo.deleteAll(any()));
+      verifyNever(() => mockTrashedLocalAssetRepo.trashLocalAsset(any()));
+    });
+
+    test('SF-FAM-MOB-008 reset completes a second full sync before returning without device media changes', () async {
+      var initialStreamCompleted = false;
+      var fullStreamCompleted = false;
+
+      when(
+        () => mockSyncApiRepo.streamChanges(
+          any(),
+          onReset: any(named: 'onReset'),
+          serverVersion: any(named: 'serverVersion'),
+          abortSignal: any(named: 'abortSignal'),
+        ),
+      ).thenAnswer((invocation) async {
+        final onData =
+            invocation.positionalArguments.first as Future<void> Function(List<SyncEvent>, Function(), Function());
+        final onReset = invocation.namedArguments[#onReset] as Function;
+        await onData([SyncStreamStub.syncResetV1], () {}, () => onReset());
+        initialStreamCompleted = true;
+      });
+      when(
+        () => mockSyncApiRepo.streamChanges(
+          any(),
+          serverVersion: any(named: 'serverVersion'),
+          abortSignal: any(named: 'abortSignal'),
+        ),
+      ).thenAnswer((invocation) async {
+        expect(initialStreamCompleted, isTrue);
+        final onData =
+            invocation.positionalArguments.first as Future<void> Function(List<SyncEvent>, Function(), Function());
+        await onData([SyncStreamStub.userV1User], () {}, () {});
+        fullStreamCompleted = true;
+      });
+
+      final result = await sut.sync();
+
+      expect(result, isTrue);
+      expect(fullStreamCompleted, isTrue);
+      verify(() => mockSyncStreamRepo.reset()).called(1);
+      verify(() => mockSyncStreamRepo.updateUsersV1(any())).called(1);
+      verifyNever(() => mockAssetMediaRepo.deleteAll(any()));
+    });
+
     test("processes events and acks successfully when handlers succeed", () async {
       final events = [
         SyncStreamStub.userDeleteV1,
