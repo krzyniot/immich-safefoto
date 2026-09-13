@@ -1410,49 +1410,64 @@ order by
 
 -- SyncRepository.partner.getCreatedAfter
 select
-  "sharedById",
-  "createId"
+  "partner"."sharedById",
+  "partner"."createId"
 from
   "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
 where
-  "sharedWithId" = $1
-  and "createId" >= $2
-  and "createId" < $3
+  "partner"."sharedWithId" = $1
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
+  and "partner"."createId" >= $2
+  and "partner"."createId" < $3
 order by
   "partner"."createId" asc
 
 -- SyncRepository.partner.getDeletes
 select
-  "id",
-  "sharedById",
-  "sharedWithId"
+  "partner_audit"."id",
+  "partner_audit"."sharedById",
+  "partner_audit"."sharedWithId"
 from
   "partner_audit" as "partner_audit"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner_audit"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner_audit"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
 where
   "partner_audit"."id" < $1
   and "partner_audit"."id" > $2
   and (
-    "sharedById" = $3
-    or "sharedWithId" = $4
+    "partner_audit"."sharedById" = $3
+    or "partner_audit"."sharedWithId" = $4
   )
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
 order by
   "partner_audit"."id" asc
 
 -- SyncRepository.partner.getUpserts
 select
-  "sharedById",
-  "sharedWithId",
-  "inTimeline",
-  "updateId"
+  "partner"."sharedById",
+  "partner"."sharedWithId",
+  "partner"."inTimeline",
+  "partner"."updateId"
 from
   "partner" as "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+  and "sharedWith"."deletedAt" is null
 where
   "partner"."updateId" < $1
   and "partner"."updateId" > $2
   and (
-    "sharedById" = $3
-    or "sharedWithId" = $4
+    "partner"."sharedById" = $3
+    or "partner"."sharedWithId" = $4
   )
+  and "sharedBy"."householdId" = "sharedWith"."householdId"
 order by
   "partner"."updateId" asc
 
@@ -1500,11 +1515,16 @@ where
   and "asset_audit"."id" > $2
   and "ownerId" in (
     select
-      "sharedById"
+      "partner"."sharedById"
     from
       "partner"
+      inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+      and "sharedBy"."deletedAt" is null
+      inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+      and "sharedWith"."deletedAt" is null
     where
-      "sharedWithId" = $3
+      "partner"."sharedWithId" = $3
+      and "sharedBy"."householdId" = "sharedWith"."householdId"
   )
 order by
   "asset_audit"."id" asc
@@ -1539,11 +1559,16 @@ where
   and "asset"."updateId" > $3
   and "ownerId" in (
     select
-      "sharedById"
+      "partner"."sharedById"
     from
       "partner"
+      inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+      and "sharedBy"."deletedAt" is null
+      inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+      and "sharedWith"."deletedAt" is null
     where
-      "sharedWithId" = $4
+      "partner"."sharedWithId" = $4
+      and "sharedBy"."householdId" = "sharedWith"."householdId"
   )
 order by
   "asset"."updateId" asc
@@ -1628,11 +1653,16 @@ where
     where
       "ownerId" in (
         select
-          "sharedById"
+          "partner"."sharedById"
         from
           "partner"
+          inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+          and "sharedBy"."deletedAt" is null
+          inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+          and "sharedWith"."deletedAt" is null
         where
-          "sharedWithId" = $3
+          "partner"."sharedWithId" = $3
+          and "sharedBy"."householdId" = "sharedWith"."householdId"
       )
   )
 order by
@@ -1649,11 +1679,16 @@ where
   and "stack_audit"."id" > $2
   and "userId" in (
     select
-      "sharedById"
+      "partner"."sharedById"
     from
       "partner"
+      inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+      and "sharedBy"."deletedAt" is null
+      inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+      and "sharedWith"."deletedAt" is null
     where
-      "sharedWithId" = $3
+      "partner"."sharedWithId" = $3
+      and "sharedBy"."householdId" = "sharedWith"."householdId"
   )
 order by
   "stack_audit"."id" asc
@@ -1691,11 +1726,16 @@ where
   and "stack"."updateId" > $2
   and "ownerId" in (
     select
-      "sharedById"
+      "partner"."sharedById"
     from
       "partner"
+      inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+      and "sharedBy"."deletedAt" is null
+      inner join "user" as "sharedWith" on "sharedWith"."id" = "partner"."sharedWithId"
+      and "sharedWith"."deletedAt" is null
     where
-      "sharedWithId" = $3
+      "partner"."sharedWithId" = $3
+      and "sharedBy"."householdId" = "sharedWith"."householdId"
   )
 order by
   "stack"."updateId" asc

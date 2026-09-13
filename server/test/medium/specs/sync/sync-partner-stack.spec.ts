@@ -24,6 +24,7 @@ describe(SyncRequestType.PartnerStacksV1, () => {
   it('should detect and sync the first partner stack', async () => {
     const { auth, user, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: user.id });
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     const { stack } = await ctx.newStack({ ownerId: user2.id }, [asset.id]);
@@ -52,6 +53,7 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, user, ctx } = await setup();
     const stackRepo = ctx.get(StackRepository);
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: user.id });
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     const { stack } = await ctx.newStack({ ownerId: user2.id }, [asset.id]);
@@ -77,6 +79,7 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, user, ctx } = await setup();
     const userRepo = ctx.get(UserRepository);
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: user.id });
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newStack({ ownerId: user2.id }, [asset.id]);
@@ -88,6 +91,7 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, user, ctx } = await setup();
     const partnerRepo = ctx.get(PartnerRepository);
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user.id);
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newStack({ ownerId: user2.id }, [asset.id]);
     const { partner } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user.id });
@@ -103,6 +107,7 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, user, ctx } = await setup();
     const stackRepo = ctx.get(StackRepository);
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user.id);
     const { asset } = await ctx.newAsset({ ownerId: user.id });
     const { stack } = await ctx.newStack({ ownerId: user.id }, [asset.id]);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: user.id });
@@ -147,6 +152,8 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, user, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
     const { user: user3 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
+    await ctx.moveUserToHouseholdOf(user3.id, auth.user.id);
     const { asset: asset3 } = await ctx.newAsset({ ownerId: user3.id });
     const { stack: stack3 } = await ctx.newStack({ ownerId: user3.id }, [asset3.id]);
     await wait(2);
@@ -193,6 +200,8 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
     const { user: user3 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
+    await ctx.moveUserToHouseholdOf(user3.id, auth.user.id);
     const { asset: asset3 } = await ctx.newAsset({ ownerId: user3.id });
     const { stack: stack3 } = await ctx.newStack({ ownerId: user3.id }, [asset3.id]);
     await wait(2);
@@ -242,6 +251,44 @@ describe(SyncRequestType.PartnerStacksV1, () => {
     ]);
 
     await ctx.syncAckAll(auth, newResponse);
+    await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnerStacksV1]);
+  });
+
+  it('should not backfill stacks for a stale cross-household partner', async () => {
+    const { auth, ctx } = await setup();
+    const stackRepo = ctx.get(StackRepository);
+    const { user: initialPartner } = await ctx.newUser();
+    const { user: stalePartner } = await ctx.newUser();
+    const { user: householdB } = await ctx.newUser();
+    const { asset: staleAsset } = await ctx.newAsset({ ownerId: stalePartner.id });
+    const { stack: staleStack } = await ctx.newStack({ ownerId: stalePartner.id }, [staleAsset.id]);
+    await wait(2);
+    const { asset: initialAsset } = await ctx.newAsset({ ownerId: initialPartner.id });
+    await ctx.newStack({ ownerId: initialPartner.id }, [initialAsset.id]);
+    await ctx.moveUserToHouseholdOf(initialPartner.id, auth.user.id);
+    await ctx.newPartner({ sharedById: initialPartner.id, sharedWithId: auth.user.id });
+
+    const initialResponse = await ctx.syncStream(auth, [SyncRequestType.PartnerStacksV1]);
+    await ctx.syncAckAll(auth, initialResponse);
+
+    await ctx.moveUserToHouseholdOf(stalePartner.id, auth.user.id);
+    await ctx.newPartner({ sharedById: stalePartner.id, sharedWithId: auth.user.id });
+    await ctx.moveUserToHouseholdOf(stalePartner.id, householdB.id);
+
+    const response = await ctx.syncStream(auth, [SyncRequestType.PartnerStacksV1]);
+    expect(response).toEqual([expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 })]);
+    expect(response).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ data: expect.objectContaining({ id: staleStack.id }) })]),
+    );
+    await ctx.syncAckAll(auth, response);
+
+    const { asset: incrementalAsset } = await ctx.newAsset({ ownerId: stalePartner.id });
+    const { stack: incrementalStack } = await ctx.newStack({ ownerId: stalePartner.id }, [incrementalAsset.id]);
+    const upsertResponse = await ctx.syncStream(auth, [SyncRequestType.PartnerStacksV1]);
+    expect(upsertResponse).toEqual([expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 })]);
+    await ctx.syncAckAll(auth, upsertResponse);
+
+    await stackRepo.delete(incrementalStack.id);
     await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnerStacksV1]);
   });
 });

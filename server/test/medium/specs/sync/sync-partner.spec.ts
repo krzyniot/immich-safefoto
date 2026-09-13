@@ -23,6 +23,7 @@ describe(SyncEntityType.PartnerV1, () => {
     const { auth, user: user1, ctx } = await setup();
 
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
     const { partner } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
 
     const response = await ctx.syncStream(auth, [SyncRequestType.PartnersV1]);
@@ -49,6 +50,7 @@ describe(SyncEntityType.PartnerV1, () => {
     const partnerRepo = ctx.get(PartnerRepository);
 
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
     const { partner } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
     await partnerRepo.remove(partner);
 
@@ -73,6 +75,7 @@ describe(SyncEntityType.PartnerV1, () => {
     const { auth, user: user1, ctx } = await setup();
 
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
     const { partner: partner1 } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
     const { partner: partner2 } = await ctx.newPartner({ sharedById: user1.id, sharedWithId: user2.id });
 
@@ -109,6 +112,7 @@ describe(SyncEntityType.PartnerV1, () => {
     const partnerRepo = ctx.get(PartnerRepository);
 
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
     const { partner } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
 
     const response = await ctx.syncStream(auth, [SyncRequestType.PartnersV1]);
@@ -170,8 +174,42 @@ describe(SyncEntityType.PartnerV1, () => {
     const userRepo = ctx.get(UserRepository);
 
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: auth.user.id });
     await userRepo.delete({ id: user2.id }, true);
+
+    await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnersV1]);
+  });
+
+  it('should stop syncing a stale partner after the users move to different households', async () => {
+    const { auth, user: user1, ctx } = await setup();
+    const { user: user2 } = await ctx.newUser();
+    const { user: householdB } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
+    await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
+
+    const response = await ctx.syncStream(auth, [SyncRequestType.PartnersV1]);
+    expect(response).toEqual([
+      expect.objectContaining({ type: SyncEntityType.PartnerV1 }),
+      expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 }),
+    ]);
+
+    await ctx.moveUserToHouseholdOf(user2.id, householdB.id);
+
+    await expect(ctx.syncStream(auth, [SyncRequestType.PartnersV1], true)).resolves.toEqual([
+      expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 }),
+    ]);
+  });
+
+  it('should not sync a stale partner delete across households', async () => {
+    const { auth, user: user1, ctx } = await setup();
+    const partnerRepo = ctx.get(PartnerRepository);
+    const { user: user2 } = await ctx.newUser();
+    const { user: householdB } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, user1.id);
+    const { partner } = await ctx.newPartner({ sharedById: user2.id, sharedWithId: user1.id });
+    await ctx.moveUserToHouseholdOf(user2.id, householdB.id);
+    await partnerRepo.remove(partner);
 
     await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnersV1]);
   });

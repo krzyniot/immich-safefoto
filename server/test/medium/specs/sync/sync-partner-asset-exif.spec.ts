@@ -21,6 +21,7 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
   it('should detect and sync the first partner asset exif', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: auth.user.id });
     const { asset } = await ctx.newAsset({ ownerId: user2.id });
     await ctx.newExif({ assetId: asset.id, make: 'Canon' });
@@ -68,6 +69,7 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
   it('should not sync partner asset exif for own user', async () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: auth.user.id });
     const { asset } = await ctx.newAsset({ ownerId: auth.user.id });
     await ctx.newExif({ assetId: asset.id, make: 'Canon' });
@@ -83,6 +85,7 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
     const { user: user3 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
     await ctx.newPartner({ sharedById: user2.id, sharedWithId: auth.user.id });
     const { asset } = await ctx.newAsset({ ownerId: user3.id });
     await ctx.newExif({ assetId: asset.id, make: 'Canon' });
@@ -100,6 +103,8 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
     const { user: user3 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
+    await ctx.moveUserToHouseholdOf(user3.id, auth.user.id);
     const { asset: assetUser3 } = await ctx.newAsset({ ownerId: user3.id });
     await ctx.newExif({ assetId: assetUser3.id, make: 'Canon' });
     await wait(2);
@@ -149,6 +154,8 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser({ id: '00d4c0af-7695-4cf2-85e6-415eeaf449cb' });
     const { user: user3 } = await ctx.newUser({ id: '00e4c0af-7695-4cf2-85e6-415eeaf449cb' });
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
+    await ctx.moveUserToHouseholdOf(user3.id, auth.user.id);
     const { asset: assetUser3 } = await ctx.newAsset({ ownerId: user3.id });
     await ctx.newExif({ assetId: assetUser3.id, make: 'assetUser3' });
     await wait(2);
@@ -198,6 +205,8 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
     const { auth, ctx } = await setup();
     const { user: user2 } = await ctx.newUser();
     const { user: user3 } = await ctx.newUser();
+    await ctx.moveUserToHouseholdOf(user2.id, auth.user.id);
+    await ctx.moveUserToHouseholdOf(user3.id, auth.user.id);
     const { asset: assetUser3 } = await ctx.newAsset({ ownerId: user3.id });
     await ctx.newExif({ assetId: assetUser3.id, make: 'assetUser3' });
     await wait(2);
@@ -248,6 +257,38 @@ describe(SyncRequestType.PartnerAssetExifsV1, () => {
     ]);
 
     await ctx.syncAckAll(auth, newResponse);
+    await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnerAssetExifsV1]);
+  });
+
+  it('should not backfill EXIF for a stale cross-household partner', async () => {
+    const { auth, ctx } = await setup();
+    const { user: initialPartner } = await ctx.newUser();
+    const { user: stalePartner } = await ctx.newUser();
+    const { user: householdB } = await ctx.newUser();
+    const { asset: staleAsset } = await ctx.newAsset({ ownerId: stalePartner.id });
+    await ctx.newExif({ assetId: staleAsset.id, make: 'stale-partner-camera' });
+    await wait(2);
+    const { asset: initialAsset } = await ctx.newAsset({ ownerId: initialPartner.id });
+    await ctx.newExif({ assetId: initialAsset.id, make: 'initial-partner-camera' });
+    await ctx.moveUserToHouseholdOf(initialPartner.id, auth.user.id);
+    await ctx.newPartner({ sharedById: initialPartner.id, sharedWithId: auth.user.id });
+
+    const initialResponse = await ctx.syncStream(auth, [SyncRequestType.PartnerAssetExifsV1]);
+    await ctx.syncAckAll(auth, initialResponse);
+
+    await ctx.moveUserToHouseholdOf(stalePartner.id, auth.user.id);
+    await ctx.newPartner({ sharedById: stalePartner.id, sharedWithId: auth.user.id });
+    await ctx.moveUserToHouseholdOf(stalePartner.id, householdB.id);
+
+    const response = await ctx.syncStream(auth, [SyncRequestType.PartnerAssetExifsV1]);
+    expect(response).toEqual([expect.objectContaining({ type: SyncEntityType.SyncCompleteV1 })]);
+    expect(response).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ data: expect.objectContaining({ assetId: staleAsset.id }) })]),
+    );
+    await ctx.syncAckAll(auth, response);
+
+    const { asset: incrementalAsset } = await ctx.newAsset({ ownerId: stalePartner.id });
+    await ctx.newExif({ assetId: incrementalAsset.id, make: 'incremental-stale-partner-camera' });
     await ctx.assertSyncIsComplete(auth, [SyncRequestType.PartnerAssetExifsV1]);
   });
 });

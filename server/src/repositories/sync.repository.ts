@@ -144,6 +144,20 @@ export class BaseSync {
       .where('household_asset_audit.ownerId', 'in', this.householdUserIds(userId));
   }
 
+  protected householdPartnerIds(userId: string) {
+    return this.db
+      .selectFrom('partner')
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
+      .select('partner.sharedById')
+      .where('partner.sharedWithId', '=', userId)
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId');
+  }
+
   protected backfillQuery<T extends keyof DB>(t: T, { nowId, beforeUpdateId, afterUpdateId }: SyncBackfillOptions) {
     const { table, ref } = this.db.dynamic;
     const updateIdRef = ref(`${t}.updateId`);
@@ -661,10 +675,17 @@ class PartnerSync extends BaseSync {
   getCreatedAfter({ nowId, userId, afterCreateId }: SyncCreatedAfterOptions) {
     return this.db
       .selectFrom('partner')
-      .select(['sharedById', 'createId'])
-      .where('sharedWithId', '=', userId)
-      .$if(!!afterCreateId, (qb) => qb.where('createId', '>=', afterCreateId!))
-      .where('createId', '<', nowId)
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
+      .select(['partner.sharedById', 'partner.createId'])
+      .where('partner.sharedWithId', '=', userId)
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
+      .$if(!!afterCreateId, (qb) => qb.where('partner.createId', '>=', afterCreateId!))
+      .where('partner.createId', '<', nowId)
       .orderBy('partner.createId', 'asc')
       .execute();
   }
@@ -673,8 +694,17 @@ class PartnerSync extends BaseSync {
   getDeletes(options: SyncQueryOptions) {
     const userId = options.userId;
     return this.auditQuery('partner_audit', options)
-      .select(['id', 'sharedById', 'sharedWithId'])
-      .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner_audit.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner_audit.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
+      .select(['partner_audit.id', 'partner_audit.sharedById', 'partner_audit.sharedWithId'])
+      .where((eb) =>
+        eb.or([eb('partner_audit.sharedById', '=', userId), eb('partner_audit.sharedWithId', '=', userId)]),
+      )
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .stream();
   }
 
@@ -686,8 +716,15 @@ class PartnerSync extends BaseSync {
   getUpserts(options: SyncQueryOptions) {
     const userId = options.userId;
     return this.upsertQuery('partner', options)
-      .select(['sharedById', 'sharedWithId', 'inTimeline', 'updateId'])
-      .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('user as sharedWith', (join) =>
+        join.onRef('sharedWith.id', '=', 'partner.sharedWithId').on('sharedWith.deletedAt', 'is', null),
+      )
+      .select(['partner.sharedById', 'partner.sharedWithId', 'partner.inTimeline', 'partner.updateId'])
+      .where((eb) => eb.or([eb('partner.sharedById', '=', userId), eb('partner.sharedWithId', '=', userId)]))
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .stream();
   }
 }
@@ -707,9 +744,7 @@ class PartnerAssetsSync extends BaseSync {
   getDeletes(options: SyncQueryOptions) {
     return this.auditQuery('asset_audit', options)
       .select(['id', 'assetId'])
-      .where('ownerId', 'in', (eb) =>
-        eb.selectFrom('partner').select(['sharedById']).where('sharedWithId', '=', options.userId),
-      )
+      .where('ownerId', 'in', this.householdPartnerIds(options.userId))
       .stream();
   }
 
@@ -719,9 +754,7 @@ class PartnerAssetsSync extends BaseSync {
       .select(columns.syncPartnerAsset)
       .select(sql.val(false).as('isFavorite'))
       .select('asset.updateId')
-      .where('ownerId', 'in', (eb) =>
-        eb.selectFrom('partner').select(['sharedById']).where('sharedWithId', '=', options.userId),
-      )
+      .where('ownerId', 'in', this.householdPartnerIds(options.userId))
       .stream();
   }
 }
@@ -743,12 +776,7 @@ class PartnerAssetExifsSync extends BaseSync {
       .select(columns.syncAssetExif)
       .select('asset_exif.updateId')
       .where('assetId', 'in', (eb) =>
-        eb
-          .selectFrom('asset')
-          .select('id')
-          .where('ownerId', 'in', (eb) =>
-            eb.selectFrom('partner').select(['sharedById']).where('sharedWithId', '=', options.userId),
-          ),
+        eb.selectFrom('asset').select('id').where('ownerId', 'in', this.householdPartnerIds(options.userId)),
       )
       .stream();
   }
@@ -782,9 +810,7 @@ class PartnerStackSync extends BaseSync {
   getDeletes(options: SyncQueryOptions) {
     return this.auditQuery('stack_audit', options)
       .select(['id', 'stackId'])
-      .where('userId', 'in', (eb) =>
-        eb.selectFrom('partner').select(['sharedById']).where('sharedWithId', '=', options.userId),
-      )
+      .where('userId', 'in', this.householdPartnerIds(options.userId))
       .stream();
   }
 
@@ -802,9 +828,7 @@ class PartnerStackSync extends BaseSync {
     return this.upsertQuery('stack', options)
       .select(columns.syncStack)
       .select('updateId')
-      .where('ownerId', 'in', (eb) =>
-        eb.selectFrom('partner').select(['sharedById']).where('sharedWithId', '=', options.userId),
-      )
+      .where('ownerId', 'in', this.householdPartnerIds(options.userId))
       .stream();
   }
 }
