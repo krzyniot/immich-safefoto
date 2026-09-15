@@ -46,7 +46,8 @@ from
   inner join "user" as "sharedWith" on "partner"."sharedWithId" = "sharedWith"."id"
   and "sharedWith"."deletedAt" is null
 where
-  (
+  "sharedBy"."householdId" = "sharedWith"."householdId"
+  and (
     "sharedWithId" = $1
     or "sharedById" = $2
   )
@@ -97,7 +98,8 @@ from
   inner join "user" as "sharedWith" on "partner"."sharedWithId" = "sharedWith"."id"
   and "sharedWith"."deletedAt" is null
 where
-  "sharedWithId" = $1
+  "sharedBy"."householdId" = "sharedWith"."householdId"
+  and "sharedWithId" = $1
   and "sharedById" = $2
 
 -- PartnerRepository.update
@@ -107,6 +109,18 @@ set
 where
   "sharedWithId" = $2
   and "sharedById" = $3
+  and exists (
+    select
+      "sharedBy"."id"
+    from
+      "user" as "sharedBy"
+      inner join "user" as "sharedWith" on "sharedWith"."householdId" = "sharedBy"."householdId"
+    where
+      "sharedBy"."id" = $4
+      and "sharedWith"."id" = $5
+      and "sharedBy"."deletedAt" is null
+      and "sharedWith"."deletedAt" is null
+  )
 returning
   *,
   (
@@ -151,3 +165,15 @@ delete from "partner"
 where
   "sharedWithId" = $1
   and "sharedById" = $2
+  and exists (
+    select
+      "sharedBy"."id"
+    from
+      "user" as "sharedBy"
+      inner join "user" as "sharedWith" on "sharedWith"."householdId" = "sharedBy"."householdId"
+    where
+      "sharedBy"."id" = $3
+      and "sharedWith"."id" = $4
+      and "sharedBy"."deletedAt" is null
+      and "sharedWith"."deletedAt" is null
+  )

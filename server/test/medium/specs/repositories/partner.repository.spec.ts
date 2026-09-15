@@ -22,6 +22,72 @@ beforeAll(async () => {
 });
 
 describe(PartnerRepository.name, () => {
+  it('does not remove a stale partner across different households', async () => {
+    const { ctx, sut } = setup();
+    const { result: user1 } = await ctx.newUser();
+    const { result: user2 } = await ctx.newUser();
+    const { householdId: household1 } = await ctx.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', user1.id)
+      .executeTakeFirstOrThrow();
+
+    await ctx.database.updateTable('user').set({ householdId: household1 }).where('id', '=', user2.id).execute();
+    await ctx.newPartner({ sharedById: user1.id, sharedWithId: user2.id });
+
+    const { result: user3 } = await ctx.newUser();
+    const { householdId: household3 } = await ctx.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', user3.id)
+      .executeTakeFirstOrThrow();
+    await ctx.database.updateTable('user').set({ householdId: household3 }).where('id', '=', user2.id).execute();
+
+    await sut.remove({ sharedById: user1.id, sharedWithId: user2.id });
+
+    const relation = await ctx.database
+      .selectFrom('partner')
+      .selectAll()
+      .where('sharedById', '=', user1.id)
+      .where('sharedWithId', '=', user2.id)
+      .executeTakeFirst();
+    expect(relation).toBeDefined();
+  });
+
+  it('rejects updating a stale partner across different households', async () => {
+    const { ctx, sut } = setup();
+    const { result: user1 } = await ctx.newUser();
+    const { result: user2 } = await ctx.newUser();
+    const { householdId: household1 } = await ctx.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', user1.id)
+      .executeTakeFirstOrThrow();
+
+    await ctx.database.updateTable('user').set({ householdId: household1 }).where('id', '=', user2.id).execute();
+    await ctx.newPartner({ sharedById: user1.id, sharedWithId: user2.id });
+
+    const { result: user3 } = await ctx.newUser();
+    const { householdId: household3 } = await ctx.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', user3.id)
+      .executeTakeFirstOrThrow();
+    await ctx.database.updateTable('user').set({ householdId: household3 }).where('id', '=', user2.id).execute();
+
+    await expect(
+      sut.update({ sharedById: user1.id, sharedWithId: user2.id }, { inTimeline: true }),
+    ).rejects.toThrow();
+  });
+
+  it('rejects creating a partner across different households', async () => {
+    const { ctx, sut } = setup();
+    const { result: user1 } = await ctx.newUser();
+    const { result: user2 } = await ctx.newUser();
+
+    await expect(sut.create({ sharedById: user1.id, sharedWithId: user2.id })).rejects.toThrow();
+  });
+
   it('returns partners from the same household', async () => {
     const { ctx, sut } = setup();
     const { result: user1 } = await ctx.newUser();

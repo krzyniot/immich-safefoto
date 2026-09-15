@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ExpressionBuilder, Insertable, Kysely, NotNull, Updateable } from 'kysely';
+import { ExpressionBuilder, Kysely, NotNull, Updateable } from 'kysely';
 import { jsonObjectFrom } from 'kysely/helpers/postgres';
 import { InjectKysely } from 'nestjs-kysely';
 import { columns } from 'src/database';
@@ -48,10 +48,20 @@ export class PartnerRepository {
       .executeTakeFirst();
   }
 
-  create(values: Insertable<PartnerTable>) {
+  create({ sharedById, sharedWithId }: PartnerIds) {
     return this.db
       .insertInto('partner')
-      .values(values)
+      .columns(['sharedById', 'sharedWithId'])
+      .expression((eb) =>
+        eb
+          .selectFrom('user as sharedBy')
+          .innerJoin('user as sharedWith', 'sharedWith.householdId', 'sharedBy.householdId')
+          .select((eb) => [eb.val(sharedById).as('sharedById'), eb.val(sharedWithId).as('sharedWithId')])
+          .where('sharedBy.id', '=', sharedById)
+          .where('sharedWith.id', '=', sharedWithId)
+          .where('sharedBy.deletedAt', 'is', null)
+          .where('sharedWith.deletedAt', 'is', null),
+      )
       .returningAll()
       .returning(withSharedBy)
       .returning(withSharedWith)
@@ -66,6 +76,18 @@ export class PartnerRepository {
       .set(values)
       .where('sharedWithId', '=', sharedWithId)
       .where('sharedById', '=', sharedById)
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('user as sharedBy')
+            .innerJoin('user as sharedWith', 'sharedWith.householdId', 'sharedBy.householdId')
+            .select('sharedBy.id')
+            .where('sharedBy.id', '=', sharedById)
+            .where('sharedWith.id', '=', sharedWithId)
+            .where('sharedBy.deletedAt', 'is', null)
+            .where('sharedWith.deletedAt', 'is', null),
+        ),
+      )
       .returningAll()
       .returning(withSharedBy)
       .returning(withSharedWith)
@@ -79,6 +101,18 @@ export class PartnerRepository {
       .deleteFrom('partner')
       .where('sharedWithId', '=', sharedWithId)
       .where('sharedById', '=', sharedById)
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('user as sharedBy')
+            .innerJoin('user as sharedWith', 'sharedWith.householdId', 'sharedBy.householdId')
+            .select('sharedBy.id')
+            .where('sharedBy.id', '=', sharedById)
+            .where('sharedWith.id', '=', sharedWithId)
+            .where('sharedBy.deletedAt', 'is', null)
+            .where('sharedWith.deletedAt', 'is', null),
+        ),
+      )
       .execute();
   }
 
