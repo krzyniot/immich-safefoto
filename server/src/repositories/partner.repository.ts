@@ -91,6 +91,7 @@ export class PartnerRepository {
       .innerJoin('user as sharedWith', (join) =>
         join.onRef('partner.sharedWithId', '=', 'sharedWith.id').on('sharedWith.deletedAt', 'is', null),
       )
+      .whereRef('sharedBy.householdId', '=', 'sharedWith.householdId')
       .selectAll('partner')
       .select(withSharedBy)
       .select(withSharedWith);
