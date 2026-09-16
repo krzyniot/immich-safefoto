@@ -2,9 +2,21 @@
 
 -- AlbumUserRepository.create
 insert into
-  "album_user" ("userId", "albumId")
-values
-  ($1, $2)
+  "album_user" ("albumId", "userId", "role")
+select
+  $1 as "albumId",
+  $2 as "userId",
+  $3 as "role"
+from
+  "album_user" as "ownerMembership"
+  inner join "user" as "owner" on "owner"."id" = "ownerMembership"."userId"
+  inner join "user" as "member" on "member"."householdId" = "owner"."householdId"
+where
+  "ownerMembership"."albumId" = $4
+  and "ownerMembership"."role" = $5
+  and "member"."id" = $6
+  and "owner"."deletedAt" is null
+  and "member"."deletedAt" is null
 returning
   "userId",
   "albumId",
@@ -17,9 +29,37 @@ set
 where
   "userId" = $2
   and "albumId" = $3
+  and exists (
+    select
+      "ownerMembership"."albumId"
+    from
+      "album_user" as "ownerMembership"
+      inner join "user" as "owner" on "owner"."id" = "ownerMembership"."userId"
+      inner join "user" as "member" on "member"."householdId" = "owner"."householdId"
+    where
+      "ownerMembership"."albumId" = $4
+      and "ownerMembership"."role" = $5
+      and "member"."id" = $6
+      and "owner"."deletedAt" is null
+      and "member"."deletedAt" is null
+  )
 
 -- AlbumUserRepository.delete
 delete from "album_user"
 where
   "userId" = $1
   and "albumId" = $2
+  and exists (
+    select
+      "ownerMembership"."albumId"
+    from
+      "album_user" as "ownerMembership"
+      inner join "user" as "owner" on "owner"."id" = "ownerMembership"."userId"
+      inner join "user" as "member" on "member"."householdId" = "owner"."householdId"
+    where
+      "ownerMembership"."albumId" = $3
+      and "ownerMembership"."role" = $4
+      and "member"."id" = $5
+      and "owner"."deletedAt" is null
+      and "member"."deletedAt" is null
+  )
