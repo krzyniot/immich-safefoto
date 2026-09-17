@@ -82,6 +82,23 @@ const isAlbumOwned = (ownerId: string) => (eb: ExpressionBuilder<DB, 'album'>) =
       .where('album_user.userId', '=', ownerId),
   );
 
+const isAlbumInHousehold = (userId: string) => (eb: ExpressionBuilder<DB, 'album'>) =>
+  eb.exists(
+    eb
+      .selectFrom('album_user as requesterAlbum')
+      .innerJoin('album_user as ownerAlbum', (join) =>
+        join.onRef('ownerAlbum.albumId', '=', 'requesterAlbum.albumId').on('ownerAlbum.role', '=', AlbumUserRole.Owner),
+      )
+      .innerJoin('user as requester', 'requester.id', 'requesterAlbum.userId')
+      .innerJoin('user as owner', 'owner.id', 'ownerAlbum.userId')
+      .select('requesterAlbum.albumId')
+      .whereRef('requesterAlbum.albumId', '=', 'album.id')
+      .where('requesterAlbum.userId', '=', userId)
+      .whereRef('requester.householdId', '=', 'owner.householdId')
+      .where('requester.deletedAt', 'is', null)
+      .where('owner.deletedAt', 'is', null),
+  );
+
 @Injectable()
 export class AlbumRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
@@ -94,6 +111,7 @@ export class AlbumRepository {
       .selectAll('album')
       .where('album.id', '=', id)
       .where('album.deletedAt', 'is', null)
+      .$if(!!authUserId, (qb) => qb.where(isAlbumInHousehold(authUserId!)))
       .select(withAlbumUsers(authUserId))
       .select(withSharedLink)
       .$if(options.withAssets, (eb) => eb.select(withAssets))
@@ -107,14 +125,7 @@ export class AlbumRepository {
       .selectFrom('album')
       .selectAll('album')
       .innerJoin('album_asset', 'album_asset.albumId', 'album.id')
-      .where((eb) =>
-        eb.exists(
-          eb
-            .selectFrom('album_user')
-            .whereRef('album_user.albumId', '=', 'album.id')
-            .where('album_user.userId', '=', ownerId),
-        ),
-      )
+      .where(isAlbumInHousehold(ownerId))
       .where('album_asset.assetId', '=', assetId)
       .where('album.deletedAt', 'is', null)
       .select(withAlbumUsers(ownerId))
@@ -133,14 +144,7 @@ export class AlbumRepository {
       .selectFrom('album')
       .select('album.id')
       .innerJoin('album_asset', 'album_asset.albumId', 'album.id')
-      .where((eb) =>
-        eb.exists(
-          eb
-            .selectFrom('album_user')
-            .whereRef('album_user.albumId', '=', 'album.id')
-            .where('album_user.userId', '=', ownerId),
-        ),
-      )
+      .where(isAlbumInHousehold(ownerId))
       .where('album_asset.assetId', 'in', assetIds)
       .where('album.deletedAt', 'is', null)
       .select('album_asset.assetId')
@@ -190,6 +194,7 @@ export class AlbumRepository {
         join.onRef('album_user.albumId', '=', 'album.id').on('album_user.userId', '=', ownerId),
       )
       .where('album.deletedAt', 'is', null)
+      .where(isAlbumInHousehold(ownerId))
       .$if(isOwned === true, (qb) => qb.where('album_user.role', '=', sql.lit(AlbumUserRole.Owner)))
       .$if(isOwned === false, (qb) => qb.where('album_user.role', '!=', sql.lit(AlbumUserRole.Owner)))
       .$if(isShared !== undefined, (qb) =>

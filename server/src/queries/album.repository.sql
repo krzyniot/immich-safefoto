@@ -87,6 +87,22 @@ from
 where
   "album"."id" = $3
   and "album"."deletedAt" is null
+  and exists (
+    select
+      "requesterAlbum"."albumId"
+    from
+      "album_user" as "requesterAlbum"
+      inner join "album_user" as "ownerAlbum" on "ownerAlbum"."albumId" = "requesterAlbum"."albumId"
+      and "ownerAlbum"."role" = 'owner'
+      inner join "user" as "requester" on "requester"."id" = "requesterAlbum"."userId"
+      inner join "user" as "owner" on "owner"."id" = "ownerAlbum"."userId"
+    where
+      "requesterAlbum"."albumId" = "album"."id"
+      and "requesterAlbum"."userId" = $4
+      and "requester"."householdId" = "owner"."householdId"
+      and "requester"."deletedAt" is null
+      and "owner"."deletedAt" is null
+  )
 
 -- AlbumRepository.getByAssetId
 select
@@ -134,11 +150,19 @@ from
 where
   exists (
     select
+      "requesterAlbum"."albumId"
     from
-      "album_user"
+      "album_user" as "requesterAlbum"
+      inner join "album_user" as "ownerAlbum" on "ownerAlbum"."albumId" = "requesterAlbum"."albumId"
+      and "ownerAlbum"."role" = 'owner'
+      inner join "user" as "requester" on "requester"."id" = "requesterAlbum"."userId"
+      inner join "user" as "owner" on "owner"."id" = "ownerAlbum"."userId"
     where
-      "album_user"."albumId" = "album"."id"
-      and "album_user"."userId" = $2
+      "requesterAlbum"."albumId" = "album"."id"
+      and "requesterAlbum"."userId" = $2
+      and "requester"."householdId" = "owner"."householdId"
+      and "requester"."deletedAt" is null
+      and "owner"."deletedAt" is null
   )
   and "album_asset"."assetId" = $3
   and "album"."deletedAt" is null
@@ -155,11 +179,19 @@ from
 where
   exists (
     select
+      "requesterAlbum"."albumId"
     from
-      "album_user"
+      "album_user" as "requesterAlbum"
+      inner join "album_user" as "ownerAlbum" on "ownerAlbum"."albumId" = "requesterAlbum"."albumId"
+      and "ownerAlbum"."role" = 'owner'
+      inner join "user" as "requester" on "requester"."id" = "requesterAlbum"."userId"
+      inner join "user" as "owner" on "owner"."id" = "ownerAlbum"."userId"
     where
-      "album_user"."albumId" = "album"."id"
-      and "album_user"."userId" = $1
+      "requesterAlbum"."albumId" = "album"."id"
+      and "requesterAlbum"."userId" = $1
+      and "requester"."householdId" = "owner"."householdId"
+      and "requester"."deletedAt" is null
+      and "owner"."deletedAt" is null
   )
   and "album_asset"."assetId" in ($2)
   and "album"."deletedAt" is null
@@ -244,6 +276,22 @@ from
   and "album_user"."userId" = $2
 where
   "album"."deletedAt" is null
+  and exists (
+    select
+      "requesterAlbum"."albumId"
+    from
+      "album_user" as "requesterAlbum"
+      inner join "album_user" as "ownerAlbum" on "ownerAlbum"."albumId" = "requesterAlbum"."albumId"
+      and "ownerAlbum"."role" = 'owner'
+      inner join "user" as "requester" on "requester"."id" = "requesterAlbum"."userId"
+      inner join "user" as "owner" on "owner"."id" = "ownerAlbum"."userId"
+    where
+      "requesterAlbum"."albumId" = "album"."id"
+      and "requesterAlbum"."userId" = $3
+      and "requester"."householdId" = "owner"."householdId"
+      and "requester"."deletedAt" is null
+      and "owner"."deletedAt" is null
+  )
   and "album_user"."role" = 'owner'
   and (
     exists (
@@ -274,6 +322,22 @@ from
   and "album_user"."userId" = $1
 where
   "album"."deletedAt" is null
+  and exists (
+    select
+      "requesterAlbum"."albumId"
+    from
+      "album_user" as "requesterAlbum"
+      inner join "album_user" as "ownerAlbum" on "ownerAlbum"."albumId" = "requesterAlbum"."albumId"
+      and "ownerAlbum"."role" = 'owner'
+      inner join "user" as "requester" on "requester"."id" = "requesterAlbum"."userId"
+      inner join "user" as "owner" on "owner"."id" = "ownerAlbum"."userId"
+    where
+      "requesterAlbum"."albumId" = "album"."id"
+      and "requesterAlbum"."userId" = $2
+      and "requester"."householdId" = "owner"."householdId"
+      and "requester"."deletedAt" is null
+      and "owner"."deletedAt" is null
+  )
   and "album_user"."role" = 'owner'
   and (
     exists (
