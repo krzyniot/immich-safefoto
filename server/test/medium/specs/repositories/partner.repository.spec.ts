@@ -75,9 +75,7 @@ describe(PartnerRepository.name, () => {
       .executeTakeFirstOrThrow();
     await ctx.database.updateTable('user').set({ householdId: household3 }).where('id', '=', user2.id).execute();
 
-    await expect(
-      sut.update({ sharedById: user1.id, sharedWithId: user2.id }, { inTimeline: true }),
-    ).rejects.toThrow();
+    await expect(sut.update({ sharedById: user1.id, sharedWithId: user2.id }, { inTimeline: true })).rejects.toThrow();
   });
 
   it('rejects creating a partner across different households', async () => {
@@ -88,6 +86,21 @@ describe(PartnerRepository.name, () => {
     await expect(sut.create({ sharedById: user1.id, sharedWithId: user2.id })).rejects.toThrow();
   });
 
+  it('preserves inTimeline when creating a same-household partner', async () => {
+    const { ctx, sut } = setup();
+    const { result: user1 } = await ctx.newUser();
+    const { result: user2 } = await ctx.newUser();
+    const { householdId } = await ctx.database
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', user1.id)
+      .executeTakeFirstOrThrow();
+    await ctx.database.updateTable('user').set({ householdId }).where('id', '=', user2.id).execute();
+
+    await expect(sut.create({ sharedById: user1.id, sharedWithId: user2.id, inTimeline: true })).resolves.toEqual(
+      expect.objectContaining({ inTimeline: true }),
+    );
+  });
   it('returns partners from the same household', async () => {
     const { ctx, sut } = setup();
     const { result: user1 } = await ctx.newUser();
@@ -98,11 +111,7 @@ describe(PartnerRepository.name, () => {
       .where('id', '=', user1.id)
       .executeTakeFirstOrThrow();
 
-    await ctx.database
-      .updateTable('user')
-      .set({ householdId: household1 })
-      .where('id', '=', user2.id)
-      .execute();
+    await ctx.database.updateTable('user').set({ householdId: household1 }).where('id', '=', user2.id).execute();
 
     await ctx.newPartner({ sharedById: user1.id, sharedWithId: user2.id });
 
@@ -120,11 +129,7 @@ describe(PartnerRepository.name, () => {
       .select('householdId')
       .where('id', '=', user1.id)
       .executeTakeFirstOrThrow();
-    await ctx.database
-      .updateTable('user')
-      .set({ householdId: household1 })
-      .where('id', '=', user2.id)
-      .execute();
+    await ctx.database.updateTable('user').set({ householdId: household1 }).where('id', '=', user2.id).execute();
     await ctx.newPartner({ sharedById: user1.id, sharedWithId: user2.id });
 
     const { result: user3 } = await ctx.newUser();
@@ -134,11 +139,7 @@ describe(PartnerRepository.name, () => {
       .where('id', '=', user3.id)
       .executeTakeFirstOrThrow();
 
-    await ctx.database
-      .updateTable('user')
-      .set({ householdId: household3 })
-      .where('id', '=', user2.id)
-      .execute();
+    await ctx.database.updateTable('user').set({ householdId: household3 }).where('id', '=', user2.id).execute();
 
     await expect(sut.getAll(user1.id)).resolves.toEqual([]);
     await expect(sut.get({ sharedById: user1.id, sharedWithId: user2.id })).resolves.toBeUndefined();

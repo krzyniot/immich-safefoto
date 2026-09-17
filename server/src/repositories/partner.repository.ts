@@ -48,15 +48,19 @@ export class PartnerRepository {
       .executeTakeFirst();
   }
 
-  create({ sharedById, sharedWithId }: PartnerIds) {
+  create({ sharedById, sharedWithId, inTimeline }: PartnerIds & { inTimeline?: boolean }) {
     return this.db
       .insertInto('partner')
-      .columns(['sharedById', 'sharedWithId'])
+      .columns(['sharedById', 'sharedWithId', 'inTimeline'])
       .expression((eb) =>
         eb
           .selectFrom('user as sharedBy')
           .innerJoin('user as sharedWith', 'sharedWith.householdId', 'sharedBy.householdId')
-          .select((eb) => [eb.val(sharedById).as('sharedById'), eb.val(sharedWithId).as('sharedWithId')])
+          .select((eb) => [
+            eb.val(sharedById).as('sharedById'),
+            eb.val(sharedWithId).as('sharedWithId'),
+            eb.val(inTimeline ?? false).as('inTimeline'),
+          ])
           .where('sharedBy.id', '=', sharedById)
           .where('sharedWith.id', '=', sharedWithId)
           .where('sharedBy.deletedAt', 'is', null)
