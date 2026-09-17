@@ -41,7 +41,7 @@ export class TimelineService extends BaseService {
       }
     }
 
-    return { ...options, userIds };
+    return { ...options, userIds, requesterId: auth.sharedLink ? undefined : auth.user.id };
   }
 
   private async timeBucketChecks(auth: AuthDto, dto: TimeBucketDto) {

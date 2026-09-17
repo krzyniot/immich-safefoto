@@ -376,6 +376,46 @@ group by
 order by
   "timeBucket" desc
 
+-- AssetRepository.getTimeBuckets (household album)
+with
+  "asset" as (
+    select
+      date_trunc('MONTH', "localDateTime" AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' as "timeBucket"
+    from
+      "asset"
+      inner join "album_asset" on "asset"."id" = "album_asset"."assetId"
+    where
+      "asset"."deletedAt" is null
+      and "asset"."visibility" in ('archive', 'timeline')
+      and "album_asset"."albumId" = $1::uuid
+      and "asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $2
+              and "requester"."deletedAt" is null
+          )
+      )
+  )
+select
+  ("timeBucket" AT TIME ZONE 'UTC')::date::text as "timeBucket",
+  count(*) as "count"
+from
+  "asset"
+group by
+  "timeBucket"
+order by
+  "timeBucket" desc
+
 -- AssetRepository.getTimeBucket
 with
   "cte" as (
@@ -466,6 +506,107 @@ with
       coalesce(array_agg("city"), '{}') as "city",
       coalesce(array_agg("country"), '{}') as "country",
       coalesce(json_agg("stack"), '[]') as "stack"
+    from
+      "cte"
+  )
+select
+  to_json(agg)::text as "assets"
+from
+  "agg"
+
+-- AssetRepository.getTimeBucket (household album)
+with
+  "cte" as (
+    select
+      "asset"."duration",
+      "asset"."id",
+      "asset"."visibility",
+      asset."isFavorite"
+      and asset."ownerId" = $1 as "isFavorite",
+      asset.type = 'IMAGE' as "isImage",
+      asset."deletedAt" is not null as "isTrashed",
+      "asset"."livePhotoVideoId",
+      extract(
+        epoch
+        from
+          (
+            asset."localDateTime" AT TIME ZONE 'UTC' - asset."fileCreatedAt" at time zone 'UTC'
+          )
+      )::real / 3600 as "localOffsetHours",
+      "asset"."ownerId",
+      "asset"."status",
+      asset."fileCreatedAt" at time zone 'utc' as "fileCreatedAt",
+      asset."createdAt" at time zone 'utc' as "createdAt",
+      encode("asset"."thumbhash", 'base64') as "thumbhash",
+      "asset_exif"."projectionType",
+      coalesce(
+        case
+          when asset."height" = 0
+          or asset."width" = 0 then 1
+          else round(
+            asset."width"::numeric / asset."height"::numeric,
+            3
+          )
+        end,
+        1
+      ) as "ratio",
+      "asset_exif"."city",
+      "asset_exif"."country"
+    from
+      "asset"
+      inner join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
+    where
+      "asset"."deletedAt" is null
+      and "asset"."visibility" in ('archive', 'timeline')
+      and date_trunc('MONTH', "localDateTime" AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' = $2
+      and exists (
+        select
+        from
+          "album_asset"
+        where
+          "album_asset"."assetId" = "asset"."id"
+          and "album_asset"."albumId" = $3::uuid
+      )
+      and "asset"."ownerId" in (
+        select
+          "household_user"."id"
+        from
+          "user" as "household_user"
+        where
+          "household_user"."deletedAt" is null
+          and "household_user"."householdId" = (
+            select
+              "requester"."householdId"
+            from
+              "user" as "requester"
+            where
+              "requester"."id" = $4
+              and "requester"."deletedAt" is null
+          )
+      )
+    order by
+      (asset."localDateTime" AT TIME ZONE 'UTC')::date desc,
+      "asset"."fileCreatedAt" desc
+  ),
+  "agg" as (
+    select
+      coalesce(array_agg("duration"), '{}') as "duration",
+      coalesce(array_agg("id"), '{}') as "id",
+      coalesce(array_agg("visibility"), '{}') as "visibility",
+      coalesce(array_agg("isFavorite"), '{}') as "isFavorite",
+      coalesce(array_agg("isImage"), '{}') as "isImage",
+      coalesce(array_agg("isTrashed"), '{}') as "isTrashed",
+      coalesce(array_agg("livePhotoVideoId"), '{}') as "livePhotoVideoId",
+      coalesce(array_agg("fileCreatedAt"), '{}') as "fileCreatedAt",
+      coalesce(array_agg("localOffsetHours"), '{}') as "localOffsetHours",
+      coalesce(array_agg("createdAt"), '{}') as "createdAt",
+      coalesce(array_agg("ownerId"), '{}') as "ownerId",
+      coalesce(array_agg("projectionType"), '{}') as "projectionType",
+      coalesce(array_agg("ratio"), '{}') as "ratio",
+      coalesce(array_agg("status"), '{}') as "status",
+      coalesce(array_agg("thumbhash"), '{}') as "thumbhash",
+      coalesce(array_agg("city"), '{}') as "city",
+      coalesce(array_agg("country"), '{}') as "country"
     from
       "cte"
   )

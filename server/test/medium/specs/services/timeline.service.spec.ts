@@ -45,6 +45,50 @@ describe(TimelineService.name, () => {
       ]);
     });
 
+    it('hides stale cross-household album assets from timeline buckets', async () => {
+      const { sut, ctx } = setup();
+      const { user: owner } = await ctx.newUser();
+      const { user: requester } = await ctx.newUser();
+      const { user: outsider } = await ctx.newUser();
+      const { user: foreignHouseholdUser } = await ctx.newUser();
+      const { householdId: ownerHouseholdId } = await ctx.database
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', owner.id)
+        .executeTakeFirstOrThrow();
+      const { householdId: foreignHouseholdId } = await ctx.database
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', foreignHouseholdUser.id)
+        .executeTakeFirstOrThrow();
+      await ctx.database
+        .updateTable('user')
+        .set({ householdId: ownerHouseholdId })
+        .where('id', 'in', [requester.id, outsider.id])
+        .execute();
+
+      const localDateTime = new Date('1970-02-12');
+      const { asset: allowedAsset } = await ctx.newAsset({ ownerId: owner.id, localDateTime });
+      const { asset: staleAsset } = await ctx.newAsset({ ownerId: outsider.id, localDateTime });
+      await ctx.newExif({ assetId: allowedAsset.id, make: 'Canon' });
+      await ctx.newExif({ assetId: staleAsset.id, make: 'Canon' });
+      const { result: album } = await ctx.newAlbum({ ownerId: owner.id }, [allowedAsset.id, staleAsset.id]);
+      await ctx.newAlbumUser({ albumId: album.id, userId: requester.id });
+      await ctx.database
+        .updateTable('user')
+        .set({ householdId: foreignHouseholdId })
+        .where('id', '=', outsider.id)
+        .execute();
+
+      const auth = factory.auth({ user: requester });
+      await expect(sut.getTimeBuckets(auth, { albumId: album.id })).resolves.toEqual([
+        { count: 1, timeBucket: '1970-02-01' },
+      ]);
+      const bucket = JSON.parse(await sut.getTimeBucket(auth, { albumId: album.id, timeBucket: '1970-02-01' }));
+      expect(bucket.id).toEqual([allowedAsset.id]);
+      expect(bucket.id).not.toContain(staleAsset.id);
+    });
+
     it('should return error if time bucket is requested with partners asset and archived', async () => {
       const { sut } = setup();
       const auth = factory.auth();
@@ -183,6 +227,13 @@ describe(TimelineService.name, () => {
           return result;
         }),
       ]);
+
+      const { householdId } = await ctx.database
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', asset1.ownerId)
+        .executeTakeFirstOrThrow();
+      await ctx.database.updateTable('user').set({ householdId }).where('id', '=', asset2.ownerId).execute();
 
       await Promise.all([
         ctx.newPartner({ sharedById: asset1.ownerId, sharedWithId: asset2.ownerId }),

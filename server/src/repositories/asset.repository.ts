@@ -86,6 +86,7 @@ interface AssetBuilderOptions {
   tagId?: string;
   personId?: string;
   userIds?: string[];
+  requesterId?: string;
   withStacked?: boolean;
   exifInfo?: boolean;
   status?: AssetStatus;
@@ -144,6 +145,19 @@ type UpsertExifOptions = {
 
 const distinctLocked = <T extends LockableProperty[] | null>(eb: ExpressionBuilder<DB, 'asset_exif'>, columns: T) =>
   sql<T>`nullif(array(select distinct unnest(${eb.ref('asset_exif.lockedProperties')} || ${columns})), '{}')`;
+
+const householdUserIds = (db: Kysely<DB>, userId: string) =>
+  db
+    .selectFrom('user as household_user')
+    .select('household_user.id')
+    .where('household_user.deletedAt', 'is', null)
+    .where('household_user.householdId', '=', (eb) =>
+      eb
+        .selectFrom('user as requester')
+        .select('requester.householdId')
+        .where('requester.id', '=', userId)
+        .where('requester.deletedAt', 'is', null),
+    );
 
 const getBoundingCircle = (bbox: BoundingBox) => {
   const { west, south, east, north } = bbox;
@@ -740,7 +754,10 @@ export class AssetRepository {
       .execute();
   }
 
-  @GenerateSql({ params: [{}] })
+  @GenerateSql(
+    { params: [{}] },
+    { name: 'household album', params: [{ albumId: DummyValue.UUID, requesterId: DummyValue.UUID }] },
+  )
   async getTimeBuckets(options: TimeBucketOptions): Promise<TimeBucketItem[]> {
     return this.db
       .with('asset', (qb) =>
@@ -779,6 +796,9 @@ export class AssetRepository {
               .where((eb) => eb.or([eb('asset.stackId', 'is', null), eb(eb.table('stack'), 'is not', null)])),
           )
           .$if(!!options.userIds, (qb) => qb.where('asset.ownerId', '=', anyUuid(options.userIds!)))
+          .$if(!!options.albumId && !!options.requesterId, (qb) =>
+            qb.where('asset.ownerId', 'in', householdUserIds(this.db, options.requesterId!)),
+          )
           .$if(options.isFavorite !== undefined, (qb) => qb.where('asset.isFavorite', '=', options.isFavorite!))
           .$if(!!options.assetType, (qb) => qb.where('asset.type', '=', options.assetType!))
           .$if(options.isDuplicate !== undefined, (qb) =>
@@ -794,9 +814,17 @@ export class AssetRepository {
       .execute() as any as Promise<TimeBucketItem[]>;
   }
 
-  @GenerateSql({
-    params: [DummyValue.TIME_BUCKET, { withStacked: true }, { user: { id: DummyValue.UUID } }],
-  })
+  @GenerateSql(
+    { params: [DummyValue.TIME_BUCKET, { withStacked: true }, { user: { id: DummyValue.UUID } }] },
+    {
+      name: 'household album',
+      params: [
+        DummyValue.TIME_BUCKET,
+        { albumId: DummyValue.UUID, requesterId: DummyValue.UUID },
+        { user: { id: DummyValue.UUID } },
+      ],
+    },
+  )
   getTimeBucket(timeBucket: string, options: TimeBucketOptions, auth: AuthDto) {
     const order = options.order ?? 'desc';
     const query = this.db
@@ -865,6 +893,9 @@ export class AssetRepository {
           )
           .$if(!!options.personId, (qb) => hasPeople(qb, [options.personId!]))
           .$if(!!options.userIds, (qb) => qb.where('asset.ownerId', '=', anyUuid(options.userIds!)))
+          .$if(!!options.albumId && !!options.requesterId, (qb) =>
+            qb.where('asset.ownerId', 'in', householdUserIds(this.db, options.requesterId!)),
+          )
           .$if(options.isFavorite !== undefined, (qb) => qb.where('asset.isFavorite', '=', options.isFavorite!))
           .$if(!!options.withStacked, (qb) =>
             qb
