@@ -48,6 +48,14 @@ const moveToHousehold = async (userId: string, householdMemberId: string) => {
   await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
 };
 
+const getHouseholdId = async (userId: string) =>
+  (await database.selectFrom('user').select('householdId').where('id', '=', userId).executeTakeFirstOrThrow())
+    .householdId;
+
+const moveToHouseholdId = async (userId: string, householdId: string) => {
+  await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+};
+
 beforeAll(async () => {
   database = await getKyselyDB();
 });
@@ -86,6 +94,7 @@ describe('SafeFoto household isolation - Stage 1D', () => {
     const { user: a1 } = await ctx.newUser();
     const { user: a2 } = await ctx.newUser();
     const { user: b1 } = await ctx.newUser();
+    const b1HouseholdId = await getHouseholdId(b1.id);
     await moveToHousehold(a2.id, a1.id);
     const auth = factory.auth({ user: a1 });
 
@@ -118,7 +127,9 @@ describe('SafeFoto household isolation - Stage 1D', () => {
     );
     await expect(sut.addUsers(auth, album.id, { albumUsers: [{ userId: b1.id }] })).rejects.toThrow();
 
+    await moveToHousehold(b1.id, a1.id);
     await ctx.newAlbumUser({ albumId: album.id, userId: b1.id, role: AlbumUserRole.Viewer });
+    await moveToHouseholdId(b1.id, b1HouseholdId);
     const response = await sut.get(auth, album.id);
     expect(response.albumUsers.map(({ user }) => user.id)).toContain(a2.id);
     expect(response.albumUsers.map(({ user }) => user.id)).not.toContain(b1.id);
@@ -129,12 +140,15 @@ describe('SafeFoto household isolation - Stage 1D', () => {
     const { user: a1 } = await ctx.newUser();
     const { user: a2 } = await ctx.newUser();
     const { user: b1 } = await ctx.newUser();
+    const b1HouseholdId = await getHouseholdId(b1.id);
     await moveToHousehold(a2.id, a1.id);
     const auth = factory.auth({ user: a1 });
 
     await expect(sut.create(auth, { sharedWithId: a2.id })).resolves.toEqual(expect.objectContaining({ id: a2.id }));
     await expect(sut.create(auth, { sharedWithId: b1.id })).rejects.toThrow();
+    await moveToHousehold(b1.id, a1.id);
     await ctx.newPartner({ sharedById: a1.id, sharedWithId: b1.id });
+    await moveToHouseholdId(b1.id, b1HouseholdId);
 
     const partners = await sut.search(auth, { direction: PartnerDirection.SharedBy });
     expect(partners.map(({ id }) => id)).toContain(a2.id);
@@ -149,12 +163,15 @@ describe('SafeFoto household isolation - Stage 1D', () => {
     const { user: a1 } = await ctx.newUser();
     const { user: a2 } = await ctx.newUser();
     const { user: b1 } = await ctx.newUser();
+    const b1HouseholdId = await getHouseholdId(b1.id);
     await moveToHousehold(a2.id, a1.id);
     const { album } = await ctx.newAlbum({ ownerId: a1.id });
     const { asset } = await ctx.newAsset({ ownerId: a1.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: asset.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: a2.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(b1.id, a1.id);
     await ctx.newAlbumUser({ albumId: album.id, userId: b1.id, role: AlbumUserRole.Viewer });
+    await moveToHouseholdId(b1.id, b1HouseholdId);
 
     await expect(
       access.album.checkSharedAlbumAccess(a2.id, new Set([album.id]), AlbumUserRole.Viewer),
@@ -166,7 +183,9 @@ describe('SafeFoto household isolation - Stage 1D', () => {
     await expect(access.asset.checkAlbumAccess(b1.id, new Set([asset.id]))).resolves.toEqual(new Set());
 
     await ctx.newPartner({ sharedById: a1.id, sharedWithId: a2.id });
+    await moveToHousehold(b1.id, a1.id);
     await ctx.newPartner({ sharedById: a1.id, sharedWithId: b1.id });
+    await moveToHouseholdId(b1.id, b1HouseholdId);
     await expect(access.partner.checkUpdateAccess(a2.id, new Set([a1.id]))).resolves.toEqual(new Set([a1.id]));
     await expect(access.partner.checkUpdateAccess(b1.id, new Set([a1.id]))).resolves.toEqual(new Set());
   });

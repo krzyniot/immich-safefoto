@@ -22,6 +22,12 @@ describe('SafeFoto household-aware album sync', () => {
 
   const queryOptions = (userId: string) => ({ nowId: maximumUpdateId, userId });
   const backfillOptions = { nowId: maximumUpdateId, beforeUpdateId: maximumUpdateId };
+  const getHouseholdId = async (userId: string) =>
+    (await database.selectFrom('user').select('householdId').where('id', '=', userId).executeTakeFirstOrThrow())
+      .householdId;
+  const moveToHousehold = async (userId: string, householdId: string) => {
+    await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+  };
 
   beforeAll(async () => {
     database = await getKyselyDB();
@@ -37,10 +43,13 @@ describe('SafeFoto household-aware album sync', () => {
     const { user: requester } = await ctx.newUser();
     const { user: owner } = await ctx.newUser();
     const { user: outsider } = await ctx.newUser();
+    const outsiderHouseholdId = await getHouseholdId(outsider.id);
     await ctx.moveUserToHouseholdOf(owner.id, requester.id);
+    await ctx.moveUserToHouseholdOf(outsider.id, requester.id);
     const { album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(outsider.id, outsiderHouseholdId);
 
     await expect(collect(sync.album.getUpserts(queryOptions(requester.id)))).resolves.toEqual([
       expect.objectContaining({ id: album.id }),
@@ -63,8 +72,11 @@ describe('SafeFoto household-aware album sync', () => {
   it('fails closed for a missing requester, missing owner, and cross-household owner', async () => {
     const { user: requester } = await ctx.newUser();
     const { user: foreignOwner } = await ctx.newUser();
+    const foreignOwnerHouseholdId = await getHouseholdId(foreignOwner.id);
+    await ctx.moveUserToHouseholdOf(foreignOwner.id, requester.id);
     const { album } = await ctx.newAlbum({ ownerId: foreignOwner.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(foreignOwner.id, foreignOwnerHouseholdId);
 
     await expect(collect(sync.album.getUpserts(queryOptions(requester.id)))).resolves.toEqual([]);
     await expect(collect(sync.album.getUpserts(queryOptions('ffffffff-ffff-4fff-8fff-ffffffffffff')))).resolves.toEqual(
@@ -85,7 +97,9 @@ describe('SafeFoto household-aware album sync', () => {
     const { user: requester } = await ctx.newUser();
     const { user: owner } = await ctx.newUser();
     const { user: outsider } = await ctx.newUser();
+    const outsiderHouseholdId = await getHouseholdId(outsider.id);
     await ctx.moveUserToHouseholdOf(owner.id, requester.id);
+    await ctx.moveUserToHouseholdOf(outsider.id, requester.id);
 
     const { asset: allowedAsset } = await ctx.newAsset({ ownerId: owner.id });
     const { asset: foreignAsset } = await ctx.newAsset({ ownerId: outsider.id });
@@ -94,6 +108,7 @@ describe('SafeFoto household-aware album sync', () => {
     const { album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(outsider.id, outsiderHouseholdId);
     await ctx.newAlbumAsset({ albumId: album.id, assetId: allowedAsset.id });
     await ctx.newAlbumAsset({ albumId: album.id, assetId: foreignAsset.id });
 
@@ -127,13 +142,16 @@ describe('SafeFoto household-aware album sync', () => {
     const { user: requester } = await ctx.newUser();
     const { user: owner } = await ctx.newUser();
     const { user: outsider } = await ctx.newUser();
+    const outsiderHouseholdId = await getHouseholdId(outsider.id);
     await ctx.moveUserToHouseholdOf(owner.id, requester.id);
+    await ctx.moveUserToHouseholdOf(outsider.id, requester.id);
 
     const { asset } = await ctx.newAsset({ ownerId: owner.id });
     await ctx.newExif({ assetId: asset.id, make: 'SafeFoto Stage 1C' });
     const { album } = await ctx.newAlbum({ ownerId: owner.id }, [asset.id]);
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(outsider.id, outsiderHouseholdId);
 
     await expect(collect(sync.albumAsset.getBackfill(backfillOptions, album.id, requester.id))).resolves.toHaveLength(
       1,
@@ -154,10 +172,13 @@ describe('SafeFoto household-aware album sync', () => {
     const { user: requester } = await ctx.newUser();
     const { user: owner } = await ctx.newUser();
     const { user: outsider } = await ctx.newUser();
+    const outsiderHouseholdId = await getHouseholdId(outsider.id);
     await ctx.moveUserToHouseholdOf(owner.id, requester.id);
+    await ctx.moveUserToHouseholdOf(outsider.id, requester.id);
     const { album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.newAlbumUser({ albumId: album.id, userId: requester.id, role: AlbumUserRole.Viewer });
     await ctx.newAlbumUser({ albumId: album.id, userId: outsider.id, role: AlbumUserRole.Viewer });
+    await moveToHousehold(outsider.id, outsiderHouseholdId);
 
     const memberships = await collect(sync.albumUser.getUpserts(queryOptions(requester.id)));
     expect(new Set(memberships.map(({ userId }) => userId))).toEqual(new Set([requester.id, owner.id]));
