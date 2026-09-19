@@ -271,14 +271,13 @@ export class UserRepository {
         return;
       }
 
-      const activeHouseholdMember = await tx
+      const otherHouseholdMember = await tx
         .selectFrom('user')
         .select('id')
         .where('householdId', '=', user.householdId)
         .where('id', '!=', userId)
-        .where('deletedAt', 'is', null)
         .executeTakeFirst();
-      if (!activeHouseholdMember) {
+      if (!otherHouseholdMember) {
         return user;
       }
 
@@ -422,10 +421,34 @@ export class UserRepository {
     await this.db.deleteFrom('user_metadata').where('userId', '=', id).where('key', '=', key).execute();
   }
 
-  delete(user: { id: string }, hard?: boolean) {
-    return hard
-      ? this.db.deleteFrom('user').where('id', '=', user.id).execute()
-      : this.db.updateTable('user').set({ deletedAt: new Date() }).where('id', '=', user.id).execute();
+  async delete(user: { id: string }, hard?: boolean) {
+    if (!hard) {
+      return this.db.updateTable('user').set({ deletedAt: new Date() }).where('id', '=', user.id).execute();
+    }
+
+    return this.db.transaction().execute(async (tx) => {
+      const existing = await tx
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', user.id)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!existing) {
+        return [];
+      }
+
+      const result = await tx.deleteFrom('user').where('id', '=', user.id).execute();
+      const householdStillUsed = await tx
+        .selectFrom('user')
+        .select('id')
+        .where('householdId', '=', existing.householdId)
+        .executeTakeFirst();
+      if (!householdStillUsed) {
+        await tx.deleteFrom('household').where('id', '=', existing.householdId).execute();
+      }
+
+      return result;
+    });
   }
 
   @GenerateSql()
