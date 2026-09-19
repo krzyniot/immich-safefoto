@@ -107,6 +107,23 @@ const UserAdminUpdateSchema = z
 
 export class UserAdminUpdateDto extends createZodDto(UserAdminUpdateSchema) {}
 
+export const UserAdminMoveHouseholdSchema = z
+  .object({
+    householdUserId: z.uuidv4().describe('User whose household should become the target household'),
+  })
+  .meta({ id: 'UserAdminMoveHouseholdDto' });
+
+export class UserAdminMoveHouseholdDto extends createZodDto(UserAdminMoveHouseholdSchema) {}
+
+export const UserAdminHouseholdResponseSchema = z
+  .object({
+    userId: z.uuidv4().describe('Moved user ID'),
+    householdId: z.uuidv4().describe('Current SafeFoto household ID'),
+  })
+  .meta({ id: 'UserAdminHouseholdResponseDto' });
+
+export class UserAdminHouseholdResponseDto extends createZodDto(UserAdminHouseholdResponseSchema) {}
+
 const UserAdminDeleteSchema = z
   .object({
     force: z.boolean().optional().describe('Force delete even if user has assets'),
