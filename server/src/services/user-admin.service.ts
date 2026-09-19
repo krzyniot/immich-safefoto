@@ -8,6 +8,8 @@ import { UserPreferencesResponseDto, UserPreferencesUpdateDto, mapPreferences } 
 import {
   UserAdminCreateDto,
   UserAdminDeleteDto,
+  UserAdminHouseholdResponseDto,
+  UserAdminMoveHouseholdDto,
   UserAdminResponseDto,
   UserAdminSearchDto,
   UserAdminUpdateDto,
@@ -93,6 +95,22 @@ export class UserAdminService extends BaseService {
     const updatedUser = await this.userRepository.update(id, { ...dto, updatedAt: new Date() });
 
     return mapUserAdmin(updatedUser);
+  }
+
+  async moveToHousehold(
+    auth: AuthDto,
+    id: string,
+    dto: UserAdminMoveHouseholdDto,
+  ): Promise<UserAdminHouseholdResponseDto> {
+    await this.findOrFail(id, {});
+    await this.findOrFail(dto.householdUserId, {});
+
+    const moved = await this.userRepository.moveToHouseholdOf(id, dto.householdUserId);
+    if (!moved) {
+      throw new BadRequestException('Unable to move user to household');
+    }
+
+    return { userId: moved.id, householdId: moved.householdId };
   }
 
   async delete(auth: AuthDto, id: string, dto: UserAdminDeleteDto): Promise<UserAdminResponseDto> {
