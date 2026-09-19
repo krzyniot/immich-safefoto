@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ExpressionBuilder, Insertable, Kysely, sql, Updateable } from 'kysely';
+import { ExpressionBuilder, Insertable, Kysely, sql, Transaction, Updateable } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
 import { DateTime } from 'luxon';
 import { InjectKysely } from 'nestjs-kysely';
@@ -222,6 +222,15 @@ export class UserRepository {
     });
   }
 
+  getHouseholdId(userId: string) {
+    return this.db
+      .selectFrom('user')
+      .select('householdId')
+      .where('id', '=', userId)
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
+
   async moveToHouseholdOf(userId: string, householdMemberId: string) {
     return this.db.transaction().execute(async (tx) => {
       const household = await tx
@@ -244,93 +253,131 @@ export class UserRepository {
         return;
       }
 
-      if (user.householdId === household.householdId) {
-        return user;
-      }
+      return this.moveUserToHousehold(tx, user, household.householdId);
+    });
+  }
 
-      const affectedUserIds = new Set<string>([userId]);
-
-      const partners = await tx
-        .selectFrom('partner')
-        .select(['sharedById', 'sharedWithId'])
-        .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
-        .execute();
-      for (const partner of partners) {
-        affectedUserIds.add(partner.sharedById);
-        affectedUserIds.add(partner.sharedWithId);
-      }
-
-      const albumMemberships = await tx
-        .selectFrom('album_user as membership')
-        .innerJoin('album_user as owner', (join) =>
-          join.onRef('owner.albumId', '=', 'membership.albumId').on('owner.role', '=', AlbumUserRole.Owner),
-        )
-        .select(['membership.albumId', 'owner.userId as ownerId'])
-        .where('membership.userId', '=', userId)
-        .where('membership.role', '!=', AlbumUserRole.Owner)
-        .execute();
-      for (const membership of albumMemberships) {
-        affectedUserIds.add(membership.ownerId);
-      }
-
-      const ownedAlbumMembers = await tx
-        .selectFrom('album_user as owner')
-        .innerJoin('album_user as member', 'member.albumId', 'owner.albumId')
-        .select(['member.userId'])
-        .where('owner.userId', '=', userId)
-        .where('owner.role', '=', AlbumUserRole.Owner)
-        .where('member.role', '!=', AlbumUserRole.Owner)
-        .execute();
-      for (const member of ownedAlbumMembers) {
-        affectedUserIds.add(member.userId);
-      }
-
-      await tx
-        .deleteFrom('partner')
-        .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
-        .execute();
-      await tx.deleteFrom('album_user').where('userId', '=', userId).where('role', '!=', AlbumUserRole.Owner).execute();
-      await tx
-        .deleteFrom('album_user')
-        .where('albumId', 'in', (eb) =>
-          eb
-            .selectFrom('album_user as owner')
-            .select('owner.albumId')
-            .where('owner.userId', '=', userId)
-            .where('owner.role', '=', AlbumUserRole.Owner),
-        )
-        .where('role', '!=', AlbumUserRole.Owner)
-        .execute();
-
-      const updated = await tx
-        .updateTable('user')
-        .set({ householdId: household.householdId })
+  async moveToNewHousehold(userId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const user = await tx
+        .selectFrom('user')
+        .select(['id', 'householdId'])
         .where('id', '=', userId)
         .where('deletedAt', 'is', null)
-        .returning(['id', 'householdId'])
+        .forUpdate()
         .executeTakeFirst();
 
-      if (!updated) {
+      if (!user) {
         return;
       }
 
-      await tx
-        .updateTable('session')
-        .set({ isPendingSyncReset: true })
-        .where('userId', 'in', [...affectedUserIds])
-        .execute();
-
-      const oldHouseholdStillUsed = await tx
+      const activeHouseholdMember = await tx
         .selectFrom('user')
         .select('id')
         .where('householdId', '=', user.householdId)
+        .where('id', '!=', userId)
+        .where('deletedAt', 'is', null)
         .executeTakeFirst();
-      if (!oldHouseholdStillUsed) {
-        await tx.deleteFrom('household').where('id', '=', user.householdId).execute();
+      if (!activeHouseholdMember) {
+        return user;
       }
 
-      return updated;
+      const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();
+      return this.moveUserToHousehold(tx, user, household.id);
     });
+  }
+
+  private async moveUserToHousehold(
+    tx: Transaction<DB>,
+    user: { id: string; householdId: string },
+    targetHouseholdId: string,
+  ) {
+    if (user.householdId === targetHouseholdId) {
+      return user;
+    }
+
+    const affectedUserIds = new Set<string>([user.id]);
+
+    const partners = await tx
+      .selectFrom('partner')
+      .select(['sharedById', 'sharedWithId'])
+      .where((eb) => eb.or([eb('sharedById', '=', user.id), eb('sharedWithId', '=', user.id)]))
+      .execute();
+    for (const partner of partners) {
+      affectedUserIds.add(partner.sharedById);
+      affectedUserIds.add(partner.sharedWithId);
+    }
+
+    const albumMemberships = await tx
+      .selectFrom('album_user as membership')
+      .innerJoin('album_user as owner', (join) =>
+        join.onRef('owner.albumId', '=', 'membership.albumId').on('owner.role', '=', AlbumUserRole.Owner),
+      )
+      .select(['membership.albumId', 'owner.userId as ownerId'])
+      .where('membership.userId', '=', user.id)
+      .where('membership.role', '!=', AlbumUserRole.Owner)
+      .execute();
+    for (const membership of albumMemberships) {
+      affectedUserIds.add(membership.ownerId);
+    }
+
+    const ownedAlbumMembers = await tx
+      .selectFrom('album_user as owner')
+      .innerJoin('album_user as member', 'member.albumId', 'owner.albumId')
+      .select(['member.userId'])
+      .where('owner.userId', '=', user.id)
+      .where('owner.role', '=', AlbumUserRole.Owner)
+      .where('member.role', '!=', AlbumUserRole.Owner)
+      .execute();
+    for (const member of ownedAlbumMembers) {
+      affectedUserIds.add(member.userId);
+    }
+
+    await tx
+      .deleteFrom('partner')
+      .where((eb) => eb.or([eb('sharedById', '=', user.id), eb('sharedWithId', '=', user.id)]))
+      .execute();
+    await tx.deleteFrom('album_user').where('userId', '=', user.id).where('role', '!=', AlbumUserRole.Owner).execute();
+    await tx
+      .deleteFrom('album_user')
+      .where('albumId', 'in', (eb) =>
+        eb
+          .selectFrom('album_user as owner')
+          .select('owner.albumId')
+          .where('owner.userId', '=', user.id)
+          .where('owner.role', '=', AlbumUserRole.Owner),
+      )
+      .where('role', '!=', AlbumUserRole.Owner)
+      .execute();
+
+    const updated = await tx
+      .updateTable('user')
+      .set({ householdId: targetHouseholdId })
+      .where('id', '=', user.id)
+      .where('deletedAt', 'is', null)
+      .returning(['id', 'householdId'])
+      .executeTakeFirst();
+
+    if (!updated) {
+      return;
+    }
+
+    await tx
+      .updateTable('session')
+      .set({ isPendingSyncReset: true })
+      .where('userId', 'in', [...affectedUserIds])
+      .execute();
+
+    const oldHouseholdStillUsed = await tx
+      .selectFrom('user')
+      .select('id')
+      .where('householdId', '=', user.householdId)
+      .executeTakeFirst();
+    if (!oldHouseholdStillUsed) {
+      await tx.deleteFrom('household').where('id', '=', user.householdId).execute();
+    }
+
+    return updated;
   }
 
   update(id: string, dto: Updateable<UserTable>) {

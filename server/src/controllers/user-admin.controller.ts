@@ -9,6 +9,7 @@ import { UserPreferencesResponseDto, UserPreferencesUpdateDto } from 'src/dtos/u
 import {
   UserAdminCreateDto,
   UserAdminDeleteDto,
+  UserAdminHouseholdDetailsResponseDto,
   UserAdminHouseholdResponseDto,
   UserAdminMoveHouseholdDto,
   UserAdminResponseDto,
@@ -88,6 +89,20 @@ export class UserAdminController {
     return this.service.update(auth, id, dto);
   }
 
+  @Get(':id/household')
+  @Authenticated({ permission: Permission.AdminUserRead, admin: true })
+  @Endpoint({
+    summary: 'Retrieve a user household',
+    description: 'Retrieve the SafeFoto household and active household members for a user.',
+    history: new HistoryBuilder().added('v3').beta('v3'),
+  })
+  getUserHouseholdAdmin(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+  ): Promise<UserAdminHouseholdDetailsResponseDto> {
+    return this.service.getHousehold(auth, id);
+  }
+
   @Put(':id/household')
   @Authenticated({ permission: Permission.AdminUserUpdate, admin: true })
   @Endpoint({
@@ -101,6 +116,20 @@ export class UserAdminController {
     @Body() dto: UserAdminMoveHouseholdDto,
   ): Promise<UserAdminHouseholdResponseDto> {
     return this.service.moveToHousehold(auth, id, dto);
+  }
+
+  @Delete(':id/household')
+  @Authenticated({ permission: Permission.AdminUserUpdate, admin: true })
+  @Endpoint({
+    summary: 'Move a user to a new household',
+    description: 'Detach a user into a new SafeFoto household and require a full sync reset for affected users.',
+    history: new HistoryBuilder().added('v3').beta('v3'),
+  })
+  moveUserToNewHouseholdAdmin(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+  ): Promise<UserAdminHouseholdResponseDto> {
+    return this.service.moveToNewHousehold(auth, id);
   }
 
   @Delete(':id')

@@ -8,11 +8,13 @@ import { UserPreferencesResponseDto, UserPreferencesUpdateDto, mapPreferences } 
 import {
   UserAdminCreateDto,
   UserAdminDeleteDto,
+  UserAdminHouseholdDetailsResponseDto,
   UserAdminHouseholdResponseDto,
   UserAdminMoveHouseholdDto,
   UserAdminResponseDto,
   UserAdminSearchDto,
   UserAdminUpdateDto,
+  mapUser,
   mapUserAdmin,
 } from 'src/dtos/user.dto';
 import { JobName, UserMetadataKey, UserStatus } from 'src/enum';
@@ -97,6 +99,17 @@ export class UserAdminService extends BaseService {
     return mapUserAdmin(updatedUser);
   }
 
+  async getHousehold(auth: AuthDto, id: string): Promise<UserAdminHouseholdDetailsResponseDto> {
+    await this.findOrFail(id, {});
+    const household = await this.userRepository.getHouseholdId(id);
+    if (!household) {
+      throw new BadRequestException('Household not found');
+    }
+
+    const members = await this.userRepository.getByHousehold(id);
+    return { householdId: household.householdId, members: members.map((member) => mapUser(member)) };
+  }
+
   async moveToHousehold(
     auth: AuthDto,
     id: string,
@@ -108,6 +121,16 @@ export class UserAdminService extends BaseService {
     const moved = await this.userRepository.moveToHouseholdOf(id, dto.householdUserId);
     if (!moved) {
       throw new BadRequestException('Unable to move user to household');
+    }
+
+    return { userId: moved.id, householdId: moved.householdId };
+  }
+
+  async moveToNewHousehold(auth: AuthDto, id: string): Promise<UserAdminHouseholdResponseDto> {
+    await this.findOrFail(id, {});
+    const moved = await this.userRepository.moveToNewHousehold(id);
+    if (!moved) {
+      throw new BadRequestException('Unable to create a new household for user');
     }
 
     return { userId: moved.id, householdId: moved.householdId };

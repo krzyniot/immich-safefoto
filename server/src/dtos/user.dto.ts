@@ -124,6 +124,15 @@ export const UserAdminHouseholdResponseSchema = z
 
 export class UserAdminHouseholdResponseDto extends createZodDto(UserAdminHouseholdResponseSchema) {}
 
+export const UserAdminHouseholdDetailsResponseSchema = z
+  .object({
+    householdId: z.uuidv4().describe('SafeFoto household ID'),
+    members: z.array(UserResponseSchema).describe('Active users in the household'),
+  })
+  .meta({ id: 'UserAdminHouseholdDetailsResponseDto' });
+
+export class UserAdminHouseholdDetailsResponseDto extends createZodDto(UserAdminHouseholdDetailsResponseSchema) {}
+
 const UserAdminDeleteSchema = z
   .object({
     force: z.boolean().optional().describe('Force delete even if user has assets'),
