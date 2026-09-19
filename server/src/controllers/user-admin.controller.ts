@@ -9,6 +9,8 @@ import { UserPreferencesResponseDto, UserPreferencesUpdateDto } from 'src/dtos/u
 import {
   UserAdminCreateDto,
   UserAdminDeleteDto,
+  UserAdminHouseholdResponseDto,
+  UserAdminMoveHouseholdDto,
   UserAdminResponseDto,
   UserAdminSearchDto,
   UserAdminUpdateDto,
@@ -84,6 +86,21 @@ export class UserAdminController {
     @Body() dto: UserAdminUpdateDto,
   ): Promise<UserAdminResponseDto> {
     return this.service.update(auth, id, dto);
+  }
+
+  @Put(':id/household')
+  @Authenticated({ permission: Permission.AdminUserUpdate, admin: true })
+  @Endpoint({
+    summary: 'Move a user to another household',
+    description: 'Move a user to the SafeFoto household of another active user and require a full sync reset.',
+    history: new HistoryBuilder().added('v3').beta('v3'),
+  })
+  moveUserToHouseholdAdmin(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Body() dto: UserAdminMoveHouseholdDto,
+  ): Promise<UserAdminHouseholdResponseDto> {
+    return this.service.moveToHousehold(auth, id, dto);
   }
 
   @Delete(':id')
