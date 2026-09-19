@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { InjectKysely } from 'nestjs-kysely';
 import { columns } from 'src/database';
 import { DummyValue, GenerateSql } from 'src/decorators';
-import { AssetType, AssetVisibility, UserStatus } from 'src/enum';
+import { AlbumUserRole, AssetType, AssetVisibility, UserStatus } from 'src/enum';
 import { DB } from 'src/schema';
 import { UserTable } from 'src/schema/tables/user.table';
 import { UserMetadata, UserMetadataItem } from 'src/types';
@@ -248,6 +248,60 @@ export class UserRepository {
         return user;
       }
 
+      const affectedUserIds = new Set<string>([userId]);
+
+      const partners = await tx
+        .selectFrom('partner')
+        .select(['sharedById', 'sharedWithId'])
+        .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
+        .execute();
+      for (const partner of partners) {
+        affectedUserIds.add(partner.sharedById);
+        affectedUserIds.add(partner.sharedWithId);
+      }
+
+      const albumMemberships = await tx
+        .selectFrom('album_user as membership')
+        .innerJoin('album_user as owner', (join) =>
+          join.onRef('owner.albumId', '=', 'membership.albumId').on('owner.role', '=', AlbumUserRole.Owner),
+        )
+        .select(['membership.albumId', 'owner.userId as ownerId'])
+        .where('membership.userId', '=', userId)
+        .where('membership.role', '!=', AlbumUserRole.Owner)
+        .execute();
+      for (const membership of albumMemberships) {
+        affectedUserIds.add(membership.ownerId);
+      }
+
+      const ownedAlbumMembers = await tx
+        .selectFrom('album_user as owner')
+        .innerJoin('album_user as member', 'member.albumId', 'owner.albumId')
+        .select(['member.userId'])
+        .where('owner.userId', '=', userId)
+        .where('owner.role', '=', AlbumUserRole.Owner)
+        .where('member.role', '!=', AlbumUserRole.Owner)
+        .execute();
+      for (const member of ownedAlbumMembers) {
+        affectedUserIds.add(member.userId);
+      }
+
+      await tx
+        .deleteFrom('partner')
+        .where((eb) => eb.or([eb('sharedById', '=', userId), eb('sharedWithId', '=', userId)]))
+        .execute();
+      await tx.deleteFrom('album_user').where('userId', '=', userId).where('role', '!=', AlbumUserRole.Owner).execute();
+      await tx
+        .deleteFrom('album_user')
+        .where('albumId', 'in', (eb) =>
+          eb
+            .selectFrom('album_user as owner')
+            .select('owner.albumId')
+            .where('owner.userId', '=', userId)
+            .where('owner.role', '=', AlbumUserRole.Owner),
+        )
+        .where('role', '!=', AlbumUserRole.Owner)
+        .execute();
+
       const updated = await tx
         .updateTable('user')
         .set({ householdId: household.householdId })
@@ -260,7 +314,20 @@ export class UserRepository {
         return;
       }
 
-      await tx.updateTable('session').set({ isPendingSyncReset: true }).where('userId', '=', userId).execute();
+      await tx
+        .updateTable('session')
+        .set({ isPendingSyncReset: true })
+        .where('userId', 'in', [...affectedUserIds])
+        .execute();
+
+      const oldHouseholdStillUsed = await tx
+        .selectFrom('user')
+        .select('id')
+        .where('householdId', '=', user.householdId)
+        .executeTakeFirst();
+      if (!oldHouseholdStillUsed) {
+        await tx.deleteFrom('household').where('id', '=', user.householdId).execute();
+      }
 
       return updated;
     });
