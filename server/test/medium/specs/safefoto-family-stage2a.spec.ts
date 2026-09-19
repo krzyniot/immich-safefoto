@@ -59,7 +59,11 @@ describe('SafeFoto household lifecycle - Stage 2A', () => {
     );
 
     await expect(
-      database.selectFrom('session').select('isPendingSyncReset').where('id', '=', session.id).executeTakeFirstOrThrow(),
+      database
+        .selectFrom('session')
+        .select('isPendingSyncReset')
+        .where('id', '=', session.id)
+        .executeTakeFirstOrThrow(),
     ).resolves.toEqual({ isPendingSyncReset: false });
   });
 
@@ -79,7 +83,11 @@ describe('SafeFoto household lifecycle - Stage 2A', () => {
       database.selectFrom('user').select('householdId').where('id', '=', user.id).executeTakeFirstOrThrow(),
     ).resolves.toEqual(before);
     await expect(
-      database.selectFrom('session').select('isPendingSyncReset').where('id', '=', session.id).executeTakeFirstOrThrow(),
+      database
+        .selectFrom('session')
+        .select('isPendingSyncReset')
+        .where('id', '=', session.id)
+        .executeTakeFirstOrThrow(),
     ).resolves.toEqual({ isPendingSyncReset: false });
   });
 });
