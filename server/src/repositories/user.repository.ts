@@ -229,6 +229,7 @@ export class UserRepository {
         .select('householdId')
         .where('id', '=', householdMemberId)
         .where('deletedAt', 'is', null)
+        .forUpdate()
         .executeTakeFirst();
 
       const user = await tx
@@ -236,6 +237,7 @@ export class UserRepository {
         .select(['id', 'householdId'])
         .where('id', '=', userId)
         .where('deletedAt', 'is', null)
+        .forUpdate()
         .executeTakeFirst();
 
       if (!household || !user) {
