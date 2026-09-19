@@ -222,6 +222,48 @@ export class UserRepository {
     });
   }
 
+  async moveToHouseholdOf(userId: string, householdMemberId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const household = await tx
+        .selectFrom('user')
+        .select('householdId')
+        .where('id', '=', householdMemberId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+
+      const user = await tx
+        .selectFrom('user')
+        .select(['id', 'householdId'])
+        .where('id', '=', userId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+
+      if (!household || !user) {
+        return;
+      }
+
+      if (user.householdId === household.householdId) {
+        return user;
+      }
+
+      const updated = await tx
+        .updateTable('user')
+        .set({ householdId: household.householdId })
+        .where('id', '=', userId)
+        .where('deletedAt', 'is', null)
+        .returning(['id', 'householdId'])
+        .executeTakeFirst();
+
+      if (!updated) {
+        return;
+      }
+
+      await tx.updateTable('session').set({ isPendingSyncReset: true }).where('userId', '=', userId).execute();
+
+      return updated;
+    });
+  }
+
   update(id: string, dto: Updateable<UserTable>) {
     return this.db
       .updateTable('user')
