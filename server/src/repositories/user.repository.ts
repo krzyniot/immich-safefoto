@@ -215,7 +215,7 @@ export class UserRepository {
 
       return tx
         .insertInto('user')
-        .values({ ...dto, householdId: household.id })
+        .values({ ...dto, householdId: household.id, isHouseholdAdmin: true })
         .returning(columns.userAdmin)
         .returning(withMetadata)
         .executeTakeFirstOrThrow();
