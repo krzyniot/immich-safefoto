@@ -234,14 +234,51 @@ export class UserRepository {
       .executeTakeFirst();
   }
 
+  async getHouseholdUsage(householdId: string) {
+    const members = await this.db.selectFrom('user').select('quotaUsageInBytes')
+      .where('householdId', '=', householdId).where('deletedAt', 'is', null).execute();
+    return members.reduce((sum, member) => sum + Number(member.quotaUsageInBytes), 0);
+  }
+
+  // Internal domain operation for a future authenticated billing integration; no public route is exposed.
+  async setHouseholdStoragePool(householdId: string, pool: number) {
+    this.validateHouseholdPool(pool);
+    return this.db.transaction().execute(async (tx) => {
+      const household = await tx.selectFrom('household').select('isQuotaAutoBalanced')
+        .where('id', '=', householdId).forUpdate().executeTakeFirstOrThrow();
+      if (!household.isQuotaAutoBalanced) {
+        const members = await tx.selectFrom('user').select(['quotaSizeInBytes', 'quotaUsageInBytes'])
+          .where('householdId', '=', householdId).where('deletedAt', 'is', null).execute();
+        const assigned = members.reduce((sum, member) => sum + Number(member.quotaSizeInBytes ?? 0), 0);
+        if (assigned > pool || members.some((member) =>
+          Number(member.quotaSizeInBytes ?? 0) < Math.max(MIN_MEMBER_QUOTA_BYTES, Number(member.quotaUsageInBytes)))) {
+          throw new BadRequestException('Member quotas exceed household quota or current usage');
+        }
+      }
+      await this.applyHouseholdPool(tx, householdId, pool, household.isQuotaAutoBalanced);
+    });
+  }
+
+  private validateHouseholdPool(pool: number) {
+    if (!Number.isSafeInteger(pool) || pool < MIN_MEMBER_QUOTA_BYTES) {
+      throw new BadRequestException('Invalid household quota');
+    }
+  }
+
+  private async applyHouseholdPool(tx: Transaction<DB>, householdId: string, pool: number, auto: boolean) {
+    await tx.updateTable('household').set({ quotaSizeInBytes: pool, isQuotaAutoBalanced: auto })
+      .where('id', '=', householdId).execute();
+    if (auto) {
+      await this.rebalanceHousehold(tx, householdId);
+    }
+  }
+
   async setHouseholdQuota(
     adminId: string,
     pool: number,
     allocation: { mode: 'auto' } | { mode: 'manual'; limits: Record<string, number> },
   ) {
-    if (!Number.isSafeInteger(pool) || pool < MIN_MEMBER_QUOTA_BYTES) {
-      throw new BadRequestException('Invalid household quota');
-    }
+    this.validateHouseholdPool(pool);
     return this.db.transaction().execute(async (tx) => {
       const actor = await tx.selectFrom('user').select('householdId').where('id', '=', adminId).executeTakeFirst();
       if (!actor) {
@@ -299,14 +336,7 @@ export class UserRepository {
             .execute();
         }
       }
-      await tx
-        .updateTable('household')
-        .set({ quotaSizeInBytes: pool, isQuotaAutoBalanced: allocation.mode === 'auto' })
-        .where('id', '=', actor.householdId)
-        .execute();
-      if (allocation.mode === 'auto') {
-        await this.rebalanceHousehold(tx, actor.householdId);
-      }
+      await this.applyHouseholdPool(tx, actor.householdId, pool, allocation.mode === 'auto');
     });
   }
 
