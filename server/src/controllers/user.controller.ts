@@ -20,6 +20,7 @@ import { NextFunction, Response } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
+import { HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
 import { UserPreferencesResponseDto, UserPreferencesUpdateDto } from 'src/dtos/user-preferences.dto';
@@ -61,6 +62,14 @@ export class UserController {
   })
   getMyUser(@Auth() auth: AuthDto): Promise<UserAdminResponseDto> {
     return this.service.getMe(auth);
+  }
+
+  @Get('me/household')
+  @Authenticated({ permission: Permission.UserRead })
+  @Endpoint({ summary: 'Get my SafeFoto household summary',
+    history: new HistoryBuilder().added('v3').beta('v3') })
+  getMyHousehold(@Auth() auth: AuthDto): Promise<HouseholdSummaryDto> {
+    return this.service.getOwnHouseholdSummary(auth);
   }
 
   @Get('me/calendar-heatmap')

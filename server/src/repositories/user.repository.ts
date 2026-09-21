@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ExpressionBuilder, Insertable, Kysely, sql, Transaction, Updateable } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
 import { DateTime } from 'luxon';
@@ -234,6 +234,22 @@ export class UserRepository {
       .executeTakeFirst();
   }
 
+  async getOwnHouseholdSummary(userId: string) {
+    const household = await this.db.selectFrom('user')
+      .innerJoin('household', 'household.id', 'user.householdId')
+      .select(['household.id as householdId', 'user.isHouseholdAdmin',
+        'household.quotaSizeInBytes', 'household.isQuotaAutoBalanced'])
+      .select((eb) => eb.selectFrom('user as member').select(eb.fn.countAll<number>().as('count'))
+        .whereRef('member.householdId', '=', 'user.householdId')
+        .where('member.deletedAt', 'is', null).as('memberCount'))
+      .where('user.id', '=', userId).where('user.deletedAt', 'is', null).executeTakeFirst();
+    if (!household) {
+      throw new NotFoundException('Household not found');
+    }
+    return { ...household, quotaSizeInBytes: household.quotaSizeInBytes === null
+      ? null : Number(household.quotaSizeInBytes), memberCount: Number(household.memberCount) };
+  }
+
   async getHouseholdUsage(householdId: string) {
     const members = await this.db.selectFrom('user').select('quotaUsageInBytes')
       .where('householdId', '=', householdId).where('deletedAt', 'is', null).execute();
@@ -245,7 +261,10 @@ export class UserRepository {
     this.validateHouseholdPool(pool);
     return this.db.transaction().execute(async (tx) => {
       const household = await tx.selectFrom('household').select('isQuotaAutoBalanced')
-        .where('id', '=', householdId).forUpdate().executeTakeFirstOrThrow();
+        .where('id', '=', householdId).forUpdate().executeTakeFirst();
+      if (!household) {
+        throw new NotFoundException('Household not found');
+      }
       if (!household.isQuotaAutoBalanced) {
         const members = await tx.selectFrom('user').select(['quotaSizeInBytes', 'quotaUsageInBytes'])
           .where('householdId', '=', householdId).where('deletedAt', 'is', null).execute();

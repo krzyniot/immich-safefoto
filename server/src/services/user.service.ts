@@ -5,6 +5,7 @@ import { SALT_ROUNDS } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent, OnJob } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
+import { HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
@@ -25,6 +26,10 @@ import { generateProfileImage } from 'src/utils/profile-image';
 
 @Injectable()
 export class UserService extends BaseService {
+  getOwnHouseholdSummary(auth: AuthDto): Promise<HouseholdSummaryDto> {
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
   async search(auth: AuthDto): Promise<UserResponseDto[]> {
     const users = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
     return users.map((user) => mapUser(user));

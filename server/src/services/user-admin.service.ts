@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { SALT_ROUNDS } from 'src/constants';
 import { AssetStatsDto, AssetStatsResponseDto, mapStats } from 'src/dtos/asset.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
+import { HouseholdStoragePoolDto } from 'src/dtos/household.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
 import { SessionResponseDto, mapSession } from 'src/dtos/session.dto';
 import { UserPreferencesResponseDto, UserPreferencesUpdateDto, mapPreferences } from 'src/dtos/user-preferences.dto';
@@ -25,6 +26,10 @@ import { getPreferences, getPreferencesPartial, mergePreferences } from 'src/uti
 
 @Injectable()
 export class UserAdminService extends BaseService {
+  async setHouseholdStoragePool(id: string, dto: HouseholdStoragePoolDto): Promise<void> {
+    await this.userRepository.setHouseholdStoragePool(id, dto.quotaSizeInBytes);
+  }
+
   async search(auth: AuthDto, dto: UserAdminSearchDto): Promise<UserAdminResponseDto[]> {
     const users = await this.userRepository.getList({
       id: dto.id,

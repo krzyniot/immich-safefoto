@@ -1,4 +1,5 @@
 import { UserController } from 'src/controllers/user.controller';
+import { Permission } from 'src/enum';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 import { UserService } from 'src/services/user.service';
 import request from 'supertest';
@@ -34,6 +35,16 @@ describe(UserController.name, () => {
     it('should be an authenticated route', async () => {
       await request(ctx.getHttpServer()).get('/users/me');
       expect(ctx.authenticate).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /users/me/household', () => {
+    it('authenticates without accepting an arbitrary user ID', async () => {
+      await request(ctx.getHttpServer()).get('/users/me/household');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserRead }),
+      }));
+      expect(service.getOwnHouseholdSummary).toHaveBeenCalledWith(undefined);
     });
   });
 
