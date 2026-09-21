@@ -343,6 +343,130 @@ export class UserRepository {
     });
   }
 
+  async createHouseholdInvitation(adminId: string, inviteeId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const admin = await tx.selectFrom('user').select('householdId').where('id', '=', adminId)
+        .where('deletedAt', 'is', null).executeTakeFirst();
+      if (!admin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      await tx.selectFrom('household').select('id').where('id', '=', admin.householdId)
+        .forUpdate().executeTakeFirstOrThrow();
+      const actor = await tx.selectFrom('user').select('isHouseholdAdmin').where('id', '=', adminId)
+        .where('householdId', '=', admin.householdId).where('deletedAt', 'is', null).executeTakeFirst();
+      if (!actor?.isHouseholdAdmin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      const invitee = await tx.selectFrom('user').select('householdId').where('id', '=', inviteeId)
+        .where('deletedAt', 'is', null).executeTakeFirst();
+      if (!invitee || invitee.householdId === admin.householdId) {
+        throw new BadRequestException('Invitee must be an active user outside the household');
+      }
+      const members = await tx.selectFrom('user').select('id').where('householdId', '=', admin.householdId)
+        .where('deletedAt', 'is', null).execute();
+      if (members.length >= MAX_HOUSEHOLD_MEMBERS) {
+        throw new BadRequestException('Household is full');
+      }
+      const pending = await tx.selectFrom('household_invitation').select('id')
+        .where('householdId', '=', admin.householdId).where('inviteeId', '=', inviteeId)
+        .where('status', '=', 'PENDING').executeTakeFirst();
+      if (pending) {
+        throw new BadRequestException('Household invitation already pending');
+      }
+      return tx.insertInto('household_invitation')
+        .values({ householdId: admin.householdId, adminId, inviteeId, status: 'PENDING' })
+        .returningAll().executeTakeFirstOrThrow();
+    });
+  }
+
+  listHouseholdInvitations(inviteeId: string) {
+    return this.db.selectFrom('household_invitation').selectAll()
+      .where('inviteeId', '=', inviteeId).where('status', '=', 'PENDING').execute();
+  }
+
+  async getHouseholdInvitationPreview(inviteeId: string, invitationId: string) {
+    const invitation = await this.db.selectFrom('household_invitation').select(['householdId', 'status'])
+      .where('id', '=', invitationId).where('inviteeId', '=', inviteeId).executeTakeFirst();
+    const user = await this.db.selectFrom('user').select(['householdId', 'isHouseholdAdmin'])
+      .where('id', '=', inviteeId).where('deletedAt', 'is', null).executeTakeFirst();
+    if (!invitation || !user || invitation.status !== 'PENDING') {
+      throw new BadRequestException('Household invitation is unavailable');
+    }
+    const otherMember = await this.db.selectFrom('user').select('id')
+      .where('householdId', '=', user.householdId).where('id', '!=', inviteeId)
+      .where('deletedAt', 'is', null).executeTakeFirst();
+    return {
+      currentHouseholdId: user.householdId,
+      targetHouseholdId: invitation.householdId,
+      requiresAdminTransfer: user.isHouseholdAdmin && !!otherMember,
+    };
+  }
+
+  async rejectHouseholdInvitation(inviteeId: string, invitationId: string) {
+    const updated = await this.db.updateTable('household_invitation')
+      .set({ status: 'REJECTED', resolvedAt: new Date() })
+      .where('id', '=', invitationId).where('inviteeId', '=', inviteeId).where('status', '=', 'PENDING')
+      .returning('id').executeTakeFirst();
+    if (!updated) {
+      throw new BadRequestException('Household invitation is unavailable');
+    }
+  }
+
+  async cancelHouseholdInvitation(adminId: string, invitationId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const invitation = await tx.selectFrom('household_invitation').select(['householdId', 'status'])
+        .where('id', '=', invitationId).executeTakeFirst();
+      if (!invitation || invitation.status !== 'PENDING') {
+        throw new BadRequestException('Household invitation is unavailable');
+      }
+      await tx.selectFrom('household').select('id').where('id', '=', invitation.householdId)
+        .forUpdate().executeTakeFirstOrThrow();
+      const admin = await tx.selectFrom('user').select('id').where('id', '=', adminId)
+        .where('householdId', '=', invitation.householdId).where('isHouseholdAdmin', '=', true)
+        .where('deletedAt', 'is', null).executeTakeFirst();
+      if (!admin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      const updated = await tx.updateTable('household_invitation')
+        .set({ status: 'CANCELLED', resolvedAt: new Date() })
+        .where('id', '=', invitationId).where('status', '=', 'PENDING').returning('id').executeTakeFirst();
+      if (!updated) {
+        throw new BadRequestException('Household invitation is unavailable');
+      }
+    });
+  }
+
+  async acceptHouseholdInvitation(inviteeId: string, invitationId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const invitation = await tx.selectFrom('household_invitation')
+        .select(['householdId', 'adminId', 'status', 'inviteeId'])
+        .where('id', '=', invitationId).forUpdate().executeTakeFirst();
+      if (!invitation || invitation.inviteeId !== inviteeId || invitation.status !== 'PENDING') {
+        throw new BadRequestException('Household invitation is unavailable');
+      }
+      const invitee = await tx.selectFrom('user').select(['id', 'householdId'])
+        .where('id', '=', inviteeId).where('deletedAt', 'is', null).forUpdate().executeTakeFirst();
+      if (!invitee || invitee.householdId === invitation.householdId) {
+        throw new BadRequestException('Invitee must be an active user outside the household');
+      }
+      const target = await tx.selectFrom('household').select('id').where('id', '=', invitation.householdId)
+        .executeTakeFirst();
+      if (!target) {
+        throw new BadRequestException('Target household no longer exists');
+      }
+      const admin = await tx.selectFrom('user').select('id').where('id', '=', invitation.adminId)
+        .where('householdId', '=', invitation.householdId).where('isHouseholdAdmin', '=', true)
+        .where('deletedAt', 'is', null).executeTakeFirst();
+      if (!admin) {
+        throw new BadRequestException('Inviting admin no longer administers the household');
+      }
+      const moved = await this.moveUserToHousehold(tx, invitee, invitation.householdId);
+      await tx.updateTable('household_invitation').set({ status: 'ACCEPTED', resolvedAt: new Date() })
+        .where('id', '=', invitationId).execute();
+      return moved;
+    });
+  }
+
   async moveToHouseholdOf(userId: string, householdMemberId: string) {
     return this.db.transaction().execute(async (tx) => {
       const household = await tx

@@ -50,6 +50,7 @@ import { AssetTable } from 'src/schema/tables/asset.table';
 import { FaceSearchTable } from 'src/schema/tables/face-search.table';
 import { GeodataPlacesTable } from 'src/schema/tables/geodata-places.table';
 import { HouseholdTable } from 'src/schema/tables/household.table';
+import { HouseholdInvitationTable } from 'src/schema/tables/household-invitation.table';
 import { IntegrityReportTable } from 'src/schema/tables/integrity-report.table';
 import { LibraryTable } from 'src/schema/tables/library.table';
 import { MemoryAssetAuditTable } from 'src/schema/tables/memory-asset-audit.table';
@@ -118,6 +119,7 @@ export class ImmichDatabase {
     FaceSearchTable,
     GeodataPlacesTable,
     HouseholdTable,
+    HouseholdInvitationTable,
     IntegrityReportTable,
     LibraryTable,
     MemoryTable,
@@ -224,6 +226,7 @@ export interface DB {
   geodata_places: GeodataPlacesTable;
 
   household: HouseholdTable;
+  household_invitation: HouseholdInvitationTable;
 
   integrity_report: IntegrityReportTable;
 
