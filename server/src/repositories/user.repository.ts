@@ -458,18 +458,15 @@ export class UserRepository {
     }
 
     if (moving.isHouseholdAdmin) {
-      const successor = await tx
+      const remainingMember = await tx
         .selectFrom('user')
         .select('id')
         .where('householdId', '=', user.householdId)
         .where('id', '!=', user.id)
         .where('deletedAt', 'is', null)
-        .orderBy('createdAt')
-        .orderBy('id')
         .executeTakeFirst();
-      await tx.updateTable('user').set({ isHouseholdAdmin: false }).where('id', '=', user.id).execute();
-      if (successor) {
-        await tx.updateTable('user').set({ isHouseholdAdmin: true }).where('id', '=', successor.id).execute();
+      if (remainingMember) {
+        throw new BadRequestException('Household admin must transfer administration before leaving');
       }
     }
 

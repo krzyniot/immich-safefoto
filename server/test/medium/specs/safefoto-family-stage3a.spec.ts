@@ -120,7 +120,7 @@ describe('SafeFoto household management - Stage 3A', () => {
     expect(Number(moved.quotaSizeInBytes)).toBe(GiB);
   });
 
-  it('validates manual allocations and keeps the family administrator after a move', async () => {
+  it('validates manual allocations and requires an explicit successor before the admin moves', async () => {
     const { user: admin } = await ctx.newUser();
     const { user: member } = await ctx.newUser();
     await users.moveToHouseholdOf(member.id, admin.id);
@@ -131,12 +131,45 @@ describe('SafeFoto household management - Stage 3A', () => {
       mode: 'manual', limits: { [admin.id]: 2 * GiB, [member.id]: 2 * GiB },
     })).rejects.toThrow('Member quotas exceed');
     const { user: otherAdmin } = await ctx.newUser();
+    const previousFamily = await users.getHouseholdId(admin.id);
+    await expect(users.moveToHouseholdOf(admin.id, otherAdmin.id)).rejects.toThrow(
+      'Household admin must transfer administration before leaving',
+    );
+    await expect(users.getHouseholdId(admin.id)).resolves.toEqual(previousFamily);
+    await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', member.id)
+      .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: false });
+    await expect(users.moveToNewHousehold(admin.id)).rejects.toThrow(
+      'Household admin must transfer administration before leaving',
+    );
+    await expect(users.getHouseholdId(admin.id)).resolves.toEqual(previousFamily);
+
+    await users.transferHouseholdAdmin(admin.id, member.id);
     await users.moveToHouseholdOf(admin.id, otherAdmin.id);
-    const previousFamily = await users.getHouseholdId(member.id);
-    const remaining = await database.selectFrom('user').select('isHouseholdAdmin')
-      .where('id', '=', member.id).executeTakeFirstOrThrow();
-    expect(previousFamily).toBeDefined();
-    expect(remaining.isHouseholdAdmin).toBe(true);
+    await expect(users.getHouseholdId(admin.id)).resolves.toEqual(await users.getHouseholdId(otherAdmin.id));
+    await expect(users.getHouseholdId(member.id)).resolves.toEqual(previousFamily);
+    const remaining = await database.selectFrom('user').select(['id', 'isHouseholdAdmin'])
+      .where('householdId', '=', previousFamily!.householdId).execute();
+    expect(remaining).toEqual([{ id: member.id, isHouseholdAdmin: true }]);
+    await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', admin.id)
+      .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: false });
+  });
+
+  it('moves the sole admin to another household and removes the empty household', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: otherAdmin } = await ctx.newUser();
+    const oldHousehold = await users.getHouseholdId(admin.id);
+
+    await users.moveToHouseholdOf(admin.id, otherAdmin.id);
+
+    await expect(users.getHouseholdId(admin.id)).resolves.toEqual(await users.getHouseholdId(otherAdmin.id));
+    await expect(database.selectFrom('household').select('id').where('id', '=', oldHousehold!.householdId)
+      .executeTakeFirst()).resolves.toBeUndefined();
+    const members = await database.selectFrom('user').select(['id', 'isHouseholdAdmin'])
+      .where('householdId', '=', (await users.getHouseholdId(otherAdmin.id))!.householdId).execute();
+    expect(members).toEqual(expect.arrayContaining([
+      { id: admin.id, isHouseholdAdmin: false },
+      { id: otherAdmin.id, isHouseholdAdmin: true },
+    ]));
   });
 
   it('transfers administration only to a member of the same household', async () => {
