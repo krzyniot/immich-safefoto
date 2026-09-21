@@ -37,6 +37,9 @@ export class UserTable {
   })
   householdId!: string;
 
+  @Column({ type: 'boolean', default: false })
+  isHouseholdAdmin!: Generated<boolean>;
+
   @Column({ unique: true })
   email!: string;
 
