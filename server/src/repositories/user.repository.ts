@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ExpressionBuilder, Insertable, Kysely, sql, Transaction, Updateable } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
 import { DateTime } from 'luxon';
@@ -32,6 +32,9 @@ export interface UserFindOptions {
 }
 
 export type UserCreate = Omit<Insertable<UserTable>, 'householdId'>;
+
+const MAX_HOUSEHOLD_MEMBERS = 6;
+const MIN_MEMBER_QUOTA_BYTES = 1024 ** 3;
 
 const withMetadata = (eb: ExpressionBuilder<DB, 'user'>) => {
   return jsonArrayFrom(
@@ -231,6 +234,115 @@ export class UserRepository {
       .executeTakeFirst();
   }
 
+  async setHouseholdQuota(
+    adminId: string,
+    pool: number,
+    allocation: { mode: 'auto' } | { mode: 'manual'; limits: Record<string, number> },
+  ) {
+    if (!Number.isSafeInteger(pool) || pool < MIN_MEMBER_QUOTA_BYTES) {
+      throw new BadRequestException('Invalid household quota');
+    }
+    return this.db.transaction().execute(async (tx) => {
+      const actor = await tx.selectFrom('user').select('householdId').where('id', '=', adminId).executeTakeFirst();
+      if (!actor) {
+        throw new ForbiddenException('Household admin required');
+      }
+      await tx
+        .selectFrom('household')
+        .select('id')
+        .where('id', '=', actor.householdId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      const admin = await tx
+        .selectFrom('user')
+        .select('id')
+        .where('id', '=', adminId)
+        .where('householdId', '=', actor.householdId)
+        .where('isHouseholdAdmin', '=', true)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (!admin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      const members = await tx
+        .selectFrom('user')
+        .select(['id', 'quotaUsageInBytes'])
+        .where('householdId', '=', actor.householdId)
+        .where('deletedAt', 'is', null)
+        .orderBy('createdAt')
+        .orderBy('id')
+        .execute();
+      if (allocation.mode === 'manual') {
+        const ids = Object.keys(allocation.limits);
+        if (ids.length !== members.length || ids.some((id) => !members.some((member) => member.id === id))) {
+          throw new BadRequestException('Limits must cover exactly the household members');
+        }
+        let total = 0;
+        for (const member of members) {
+          const limit = allocation.limits[member.id];
+          if (
+            !Number.isSafeInteger(limit) ||
+            limit < Math.max(MIN_MEMBER_QUOTA_BYTES, Number(member.quotaUsageInBytes))
+          ) {
+            throw new BadRequestException('Member quota is below the minimum or current usage');
+          }
+          total += limit;
+        }
+        if (!Number.isSafeInteger(total) || total > pool) {
+          throw new BadRequestException('Member quotas exceed household quota');
+        }
+        for (const member of members) {
+          await tx
+            .updateTable('user')
+            .set({ quotaSizeInBytes: allocation.limits[member.id] })
+            .where('id', '=', member.id)
+            .execute();
+        }
+      }
+      await tx
+        .updateTable('household')
+        .set({ quotaSizeInBytes: pool, isQuotaAutoBalanced: allocation.mode === 'auto' })
+        .where('id', '=', actor.householdId)
+        .execute();
+      if (allocation.mode === 'auto') {
+        await this.rebalanceHousehold(tx, actor.householdId);
+      }
+    });
+  }
+
+  async transferHouseholdAdmin(adminId: string, successorId: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const actor = await tx.selectFrom('user').select('householdId').where('id', '=', adminId).executeTakeFirst();
+      if (!actor) {
+        throw new ForbiddenException('Household admin required');
+      }
+      await tx
+        .selectFrom('household')
+        .select('id')
+        .where('id', '=', actor.householdId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      const members = await tx
+        .selectFrom('user')
+        .select(['id', 'isHouseholdAdmin'])
+        .where('householdId', '=', actor.householdId)
+        .where('deletedAt', 'is', null)
+        .where('id', 'in', [adminId, successorId])
+        .execute();
+      if (!members.some((member) => member.id === adminId && member.isHouseholdAdmin)) {
+        throw new ForbiddenException('Household admin required');
+      }
+      if (!members.some((member) => member.id === successorId)) {
+        throw new BadRequestException('Successor must belong to the household');
+      }
+      if (adminId === successorId) {
+        return;
+      }
+      await tx.updateTable('user').set({ isHouseholdAdmin: false }).where('id', '=', adminId).execute();
+      await tx.updateTable('user').set({ isHouseholdAdmin: true }).where('id', '=', successorId).execute();
+    });
+  }
+
   async moveToHouseholdOf(userId: string, householdMemberId: string) {
     return this.db.transaction().execute(async (tx) => {
       const household = await tx
@@ -295,6 +407,72 @@ export class UserRepository {
       return user;
     }
 
+    // Serialize membership and quota changes for both households.
+    await tx
+      .selectFrom('household')
+      .select('id')
+      .where('id', 'in', [user.householdId, targetHouseholdId])
+      .orderBy('id')
+      .forUpdate()
+      .execute();
+
+    const target = await tx
+      .selectFrom('household')
+      .select(['quotaSizeInBytes', 'isQuotaAutoBalanced'])
+      .where('id', '=', targetHouseholdId)
+      .executeTakeFirstOrThrow();
+    const targetMembers = await tx
+      .selectFrom('user')
+      .select(['id', 'quotaSizeInBytes', 'quotaUsageInBytes'])
+      .where('householdId', '=', targetHouseholdId)
+      .where('deletedAt', 'is', null)
+      .orderBy('createdAt')
+      .orderBy('id')
+      .execute();
+    if (targetMembers.length >= MAX_HOUSEHOLD_MEMBERS) {
+      throw new BadRequestException('Household is full');
+    }
+    const moving = await tx
+      .selectFrom('user')
+      .select(['isHouseholdAdmin', 'quotaUsageInBytes'])
+      .where('id', '=', user.id)
+      .executeTakeFirstOrThrow();
+    let memberQuota: number | null = null;
+    if (target.quotaSizeInBytes !== null) {
+      const pool = Number(target.quotaSizeInBytes);
+      if (target.isQuotaAutoBalanced) {
+        const share = Math.floor(pool / (targetMembers.length + 1));
+        if (
+          share < MIN_MEMBER_QUOTA_BYTES ||
+          [...targetMembers, moving].some((member) => Number(member.quotaUsageInBytes) > share)
+        ) {
+          throw new BadRequestException('Household quota cannot accommodate another member');
+        }
+      } else {
+        const used = targetMembers.reduce((sum, member) => sum + Number(member.quotaSizeInBytes ?? 0), 0);
+        memberQuota = Math.max(MIN_MEMBER_QUOTA_BYTES, Number(moving.quotaUsageInBytes));
+        if (pool - used < memberQuota) {
+          throw new BadRequestException('Free household quota is insufficient for a new member');
+        }
+      }
+    }
+
+    if (moving.isHouseholdAdmin) {
+      const successor = await tx
+        .selectFrom('user')
+        .select('id')
+        .where('householdId', '=', user.householdId)
+        .where('id', '!=', user.id)
+        .where('deletedAt', 'is', null)
+        .orderBy('createdAt')
+        .orderBy('id')
+        .executeTakeFirst();
+      await tx.updateTable('user').set({ isHouseholdAdmin: false }).where('id', '=', user.id).execute();
+      if (successor) {
+        await tx.updateTable('user').set({ isHouseholdAdmin: true }).where('id', '=', successor.id).execute();
+      }
+    }
+
     const affectedUserIds = new Set<string>([user.id]);
 
     const partners = await tx
@@ -351,7 +529,7 @@ export class UserRepository {
 
     const updated = await tx
       .updateTable('user')
-      .set({ householdId: targetHouseholdId })
+      .set({ householdId: targetHouseholdId, isHouseholdAdmin: false, quotaSizeInBytes: memberQuota })
       .where('id', '=', user.id)
       .where('deletedAt', 'is', null)
       .returning(['id', 'householdId'])
@@ -374,12 +552,63 @@ export class UserRepository {
       .executeTakeFirst();
     if (!oldHouseholdStillUsed) {
       await tx.deleteFrom('household').where('id', '=', user.householdId).execute();
+    } else {
+      await this.rebalanceHousehold(tx, user.householdId);
     }
+
+    // A newly created household has no admin until its first member arrives.
+    if (targetMembers.length === 0) {
+      await tx.updateTable('user').set({ isHouseholdAdmin: true }).where('id', '=', user.id).execute();
+    }
+    await this.rebalanceHousehold(tx, targetHouseholdId);
 
     return updated;
   }
 
-  update(id: string, dto: Updateable<UserTable>) {
+  private async rebalanceHousehold(tx: Transaction<DB>, householdId: string) {
+    const household = await tx
+      .selectFrom('household')
+      .select(['quotaSizeInBytes', 'isQuotaAutoBalanced'])
+      .where('id', '=', householdId)
+      .executeTakeFirst();
+    if (!household || !household.isQuotaAutoBalanced || household.quotaSizeInBytes === null) {
+      return;
+    }
+    const members = await tx
+      .selectFrom('user')
+      .select(['id', 'quotaUsageInBytes'])
+      .where('householdId', '=', householdId)
+      .where('deletedAt', 'is', null)
+      .orderBy('createdAt')
+      .orderBy('id')
+      .execute();
+    if (!members.length) {
+      return;
+    }
+    const pool = Number(household.quotaSizeInBytes);
+    const share = Math.floor(pool / members.length);
+    if (share < MIN_MEMBER_QUOTA_BYTES || members.some((member) => Number(member.quotaUsageInBytes) > share)) {
+      throw new BadRequestException('Household quota cannot be divided among members');
+    }
+    const remainder = pool % members.length;
+    for (const [index, member] of members.entries()) {
+      const quotaSizeInBytes = share + (index < remainder ? 1 : 0);
+      await tx.updateTable('user').set({ quotaSizeInBytes }).where('id', '=', member.id).execute();
+    }
+  }
+
+  async update(id: string, dto: Updateable<UserTable>) {
+    if (dto.quotaSizeInBytes !== undefined) {
+      const household = await this.db
+        .selectFrom('user')
+        .innerJoin('household', 'household.id', 'user.householdId')
+        .select('household.quotaSizeInBytes')
+        .where('user.id', '=', asUuid(id))
+        .executeTakeFirst();
+      if (household?.quotaSizeInBytes !== null && household?.quotaSizeInBytes !== undefined) {
+        throw new BadRequestException('Manage member limits through the household quota');
+      }
+    }
     return this.db
       .updateTable('user')
       .set(dto)
