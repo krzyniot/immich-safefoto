@@ -90,7 +90,7 @@ describe('SafeFoto household management - Stage 3A', () => {
       .where('householdId', '=', household!.householdId).execute();
     expect(members).toHaveLength(2);
     expect(members.map((member) => Number(member.quotaSizeInBytes)).sort()).toEqual([3.5 * GiB, 3.5 * GiB]);
-    expect(members.filter((member) => member.isHouseholdAdmin).map((member) => member.id).toEqual([admin.id]);
+    expect(members.filter((member) => member.isHouseholdAdmin).map((member) => member.id)).toEqual([admin.id]);
   });
 
   it('rejects a seventh member without changing membership', async () => {

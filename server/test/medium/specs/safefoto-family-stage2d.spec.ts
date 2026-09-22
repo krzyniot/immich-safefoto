@@ -26,7 +26,7 @@ describe('SafeFoto household lifecycle - Stage 2D', () => {
 
   const moveFixtureUser = async (userId: string, householdMemberId: string) => {
     const householdId = await householdIdOf(householdMemberId);
-    await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+    await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
   };
 
   it('does not restore old partner or album sharing after leaving and rejoining a household', async () => {
@@ -34,6 +34,7 @@ describe('SafeFoto household lifecycle - Stage 2D', () => {
     const { user: oldMember } = await ctx.newUser();
     const { user: temporaryMember } = await ctx.newUser();
     await moveFixtureUser(oldMember.id, movingUser.id);
+    await users.transferHouseholdAdmin(movingUser.id, oldMember.id);
 
     await ctx.newPartner({ sharedById: movingUser.id, sharedWithId: oldMember.id });
     const { album } = await ctx.newAlbum({ ownerId: oldMember.id });

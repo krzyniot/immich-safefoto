@@ -6,6 +6,18 @@ import {
   up as addHouseholdSchema,
   down as removeHouseholdSchema,
 } from 'src/schema/migrations/1789142247620-AddSafeFotoHousehold';
+import {
+  down as removeHouseholdAudit,
+  up as addHouseholdAudit,
+} from 'src/schema/migrations/1789146351047-AddHouseholdToUserAudit';
+import {
+  down as removeHouseholdAdminAndQuota,
+  up as addHouseholdAdminAndQuota,
+} from 'src/schema/migrations/1789150000000-AddSafeFotoHouseholdAdminAndQuota';
+import {
+  down as removeHouseholdInvitations,
+  up as addHouseholdInvitations,
+} from 'src/schema/migrations/1789160000000-AddSafeFotoHouseholdInvitations';
 import { mediumFactory } from 'test/medium.factory';
 import { getKyselyDB } from 'test/utils';
 
@@ -19,6 +31,9 @@ beforeAll(async () => {
 
   // Recreate the exact pre-Stage-1A shape, add synthetic existing users and
   // sharing relationships, then exercise this migration directly.
+  await removeHouseholdInvitations(database);
+  await removeHouseholdAdminAndQuota(database);
+  await removeHouseholdAudit(database);
   await removeHouseholdSchema(database);
   await sql`INSERT INTO "user" ("id", "email", "name") VALUES
     (${user1Id}::uuid, 'stage1a-a@example.invalid', 'Stage 1A A'),
@@ -35,6 +50,9 @@ beforeAll(async () => {
   await database.insertInto('partner').values({ sharedById: user1Id, sharedWithId: user2Id }).execute();
 
   await addHouseholdSchema(database);
+  await addHouseholdAudit(database);
+  await addHouseholdAdminAndQuota(database);
+  await addHouseholdInvitations(database);
 });
 
 afterAll(async () => {

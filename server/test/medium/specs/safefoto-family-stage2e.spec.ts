@@ -26,6 +26,7 @@ describe('SafeFoto household runtime sync - Stage 2E', () => {
     const targetMember = await ctx.newSyncAuthUser();
 
     await ctx.moveUserToHouseholdOf(oldMember.user.id, moving.user.id);
+    await users.transferHouseholdAdmin(moving.user.id, oldMember.user.id);
     await ctx.newPartner({ sharedById: moving.user.id, sharedWithId: oldMember.user.id });
 
     const movingInitial = await ctx.syncStream(moving.auth, [SyncRequestType.PartnersV1]);

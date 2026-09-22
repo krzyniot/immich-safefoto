@@ -70,7 +70,7 @@ describe(UserService.name, () => {
         .select('householdId')
         .where('id', '=', user1.id)
         .executeTakeFirstOrThrow();
-      await defaultDatabase.updateTable('user').set({ householdId }).where('id', '=', user2.id).execute();
+      await defaultDatabase.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', user2.id).execute();
       const auth = factory.auth({ user: user1 });
 
       await expect(sut.search(auth)).resolves.toEqual(

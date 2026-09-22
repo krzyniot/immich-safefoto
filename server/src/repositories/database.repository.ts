@@ -5,6 +5,7 @@ import { FileMigrationProvider, Kysely, Migrator, sql } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import semver from 'semver';
 import {
   EXTENSION_NAMES,
@@ -515,7 +516,7 @@ export class DatabaseRepository {
       migrationTableName: 'kysely_migrations',
       provider: new FileMigrationProvider({
         fs: { readdir },
-        path: { join },
+        path: { join: (...parts) => pathToFileURL(join(...parts)).href },
         // eslint-disable-next-line unicorn/prefer-module
         migrationFolder: join(__dirname, '..', 'schema/migrations'),
       }),

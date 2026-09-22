@@ -328,7 +328,7 @@ export class SyncTestContext extends MediumTestContext<SyncService> {
       .select('householdId')
       .where('id', '=', householdMemberId)
       .executeTakeFirstOrThrow();
-    await this.database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+    await this.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
   }
 
   async assertSyncIsComplete(auth: AuthDto, types: SyncRequestType[]) {

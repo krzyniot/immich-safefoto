@@ -40,7 +40,7 @@ describe(AlbumUserRepository.name, () => {
       .select('householdId')
       .where('id', '=', owner.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
 
     await expect(sut.create({ albumId: album.id, userId: member.id, role: AlbumUserRole.Viewer })).resolves.toEqual(
@@ -63,12 +63,12 @@ describe(AlbumUserRepository.name, () => {
       .select('householdId')
       .where('id', '=', outsider.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await sut.create({ albumId: album.id, userId: member.id, role: AlbumUserRole.Viewer });
     await ctx.database
       .updateTable('user')
-      .set({ householdId: outsiderHouseholdId })
+      .set({ householdId: outsiderHouseholdId, isHouseholdAdmin: false })
       .where('id', '=', member.id)
       .execute();
 
@@ -97,12 +97,12 @@ describe(AlbumUserRepository.name, () => {
       .select('householdId')
       .where('id', '=', outsider.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await sut.create({ albumId: album.id, userId: member.id, role: AlbumUserRole.Viewer });
     await ctx.database
       .updateTable('user')
-      .set({ householdId: outsiderHouseholdId })
+      .set({ householdId: outsiderHouseholdId, isHouseholdAdmin: false })
       .where('id', '=', member.id)
       .execute();
 
@@ -124,7 +124,7 @@ describe(AlbumUserRepository.name, () => {
       .select('householdId')
       .where('id', '=', owner.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await sut.create({ albumId: album.id, userId: member.id, role: AlbumUserRole.Viewer });
 
@@ -147,7 +147,7 @@ describe(AlbumUserRepository.name, () => {
       .select('householdId')
       .where('id', '=', owner.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await sut.create({ albumId: album.id, userId: member.id, role: AlbumUserRole.Viewer });
 

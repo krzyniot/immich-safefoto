@@ -26,7 +26,7 @@ describe('SafeFoto household-aware album sync', () => {
     (await database.selectFrom('user').select('householdId').where('id', '=', userId).executeTakeFirstOrThrow())
       .householdId;
   const moveToHousehold = async (userId: string, householdId: string) => {
-    await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+    await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
   };
 
   beforeAll(async () => {

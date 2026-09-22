@@ -26,7 +26,7 @@ describe('SafeFoto household lifecycle - Stage 2B', () => {
 
   const moveFixtureUser = async (userId: string, householdMemberId: string) => {
     const householdId = await householdIdOf(householdMemberId);
-    await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+    await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
   };
 
   it('severs direct sharing relations and resets every affected user after a household move', async () => {
@@ -34,6 +34,7 @@ describe('SafeFoto household lifecycle - Stage 2B', () => {
     const { user: oldMember } = await ctx.newUser();
     const { user: targetMember } = await ctx.newUser();
     await moveFixtureUser(oldMember.id, movingUser.id);
+    await users.transferHouseholdAdmin(movingUser.id, oldMember.id);
 
     await ctx.newPartner({ sharedById: movingUser.id, sharedWithId: oldMember.id });
 

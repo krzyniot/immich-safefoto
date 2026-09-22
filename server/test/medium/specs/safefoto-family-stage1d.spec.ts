@@ -45,7 +45,7 @@ const moveToHousehold = async (userId: string, householdMemberId: string) => {
     .select('householdId')
     .where('id', '=', householdMemberId)
     .executeTakeFirstOrThrow();
-  await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+  await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
 };
 
 const getHouseholdId = async (userId: string) =>
@@ -53,7 +53,7 @@ const getHouseholdId = async (userId: string) =>
     .householdId;
 
 const moveToHouseholdId = async (userId: string, householdId: string) => {
-  await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+  await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
 };
 
 beforeAll(async () => {

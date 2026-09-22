@@ -63,7 +63,7 @@ describe(TimelineService.name, () => {
         .executeTakeFirstOrThrow();
       await ctx.database
         .updateTable('user')
-        .set({ householdId: ownerHouseholdId })
+        .set({ householdId: ownerHouseholdId, isHouseholdAdmin: false })
         .where('id', 'in', [requester.id, outsider.id])
         .execute();
 
@@ -76,7 +76,7 @@ describe(TimelineService.name, () => {
       await ctx.newAlbumUser({ albumId: album.id, userId: requester.id });
       await ctx.database
         .updateTable('user')
-        .set({ householdId: foreignHouseholdId })
+        .set({ householdId: foreignHouseholdId, isHouseholdAdmin: false })
         .where('id', '=', outsider.id)
         .execute();
 
@@ -233,7 +233,7 @@ describe(TimelineService.name, () => {
         .select('householdId')
         .where('id', '=', asset1.ownerId)
         .executeTakeFirstOrThrow();
-      await ctx.database.updateTable('user').set({ householdId }).where('id', '=', asset2.ownerId).execute();
+      await ctx.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', asset2.ownerId).execute();
 
       await Promise.all([
         ctx.newPartner({ sharedById: asset1.ownerId, sharedWithId: asset2.ownerId }),

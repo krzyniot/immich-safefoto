@@ -25,13 +25,14 @@ describe('SafeFoto household admin lifecycle - Stage 2C', () => {
 
   const moveFixtureUser = async (userId: string, householdMemberId: string) => {
     const householdId = await householdIdOf(householdMemberId);
-    await database.updateTable('user').set({ householdId }).where('id', '=', userId).execute();
+    await database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', userId).execute();
   };
 
   it('detaches a user into a new household and applies the same sharing cleanup', async () => {
     const { user: movingUser } = await ctx.newUser();
     const { user: oldMember } = await ctx.newUser();
     await moveFixtureUser(oldMember.id, movingUser.id);
+    await users.transferHouseholdAdmin(movingUser.id, oldMember.id);
     const oldHouseholdId = await householdIdOf(movingUser.id);
 
     await ctx.newPartner({ sharedById: movingUser.id, sharedWithId: oldMember.id });

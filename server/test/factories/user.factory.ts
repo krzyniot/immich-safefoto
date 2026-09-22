@@ -18,6 +18,7 @@ export class UserFactory {
     return new UserFactory({
       id: newUuid(),
       householdId: newUuid(),
+      isHouseholdAdmin: false,
       email: 'test@immich.cloud',
       password: '',
       pinCode: null,

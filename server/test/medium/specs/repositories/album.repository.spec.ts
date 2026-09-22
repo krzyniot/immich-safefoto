@@ -32,7 +32,7 @@ describe(AlbumRepository.name, () => {
       .select('householdId')
       .where('id', '=', owner.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.database
       .insertInto('album_user')
@@ -61,7 +61,7 @@ describe(AlbumRepository.name, () => {
       .select('householdId')
       .where('id', '=', outsider.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id });
     await ctx.database
       .insertInto('album_user')
@@ -69,7 +69,7 @@ describe(AlbumRepository.name, () => {
       .execute();
     await ctx.database
       .updateTable('user')
-      .set({ householdId: outsiderHouseholdId })
+      .set({ householdId: outsiderHouseholdId, isHouseholdAdmin: false })
       .where('id', '=', member.id)
       .execute();
 
@@ -96,7 +96,7 @@ describe(AlbumRepository.name, () => {
       .select('householdId')
       .where('id', '=', outsider.id)
       .executeTakeFirstOrThrow();
-    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId }).where('id', '=', member.id).execute();
+    await ctx.database.updateTable('user').set({ householdId: ownerHouseholdId, isHouseholdAdmin: false }).where('id', '=', member.id).execute();
     const { asset } = await ctx.newAsset({ ownerId: owner.id });
     const { result: album } = await ctx.newAlbum({ ownerId: owner.id }, [asset.id]);
     await ctx.database
@@ -105,7 +105,7 @@ describe(AlbumRepository.name, () => {
       .execute();
     await ctx.database
       .updateTable('user')
-      .set({ householdId: outsiderHouseholdId })
+      .set({ householdId: outsiderHouseholdId, isHouseholdAdmin: false })
       .where('id', '=', member.id)
       .execute();
 
