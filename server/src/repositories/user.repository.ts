@@ -250,6 +250,21 @@ export class UserRepository {
       ? null : Number(household.quotaSizeInBytes), memberCount: Number(household.memberCount) };
   }
 
+  async getOwnHouseholdAdmin(userId: string) {
+    const actor = await this.db.selectFrom('user').select('householdId')
+      .where('id', '=', userId).where('deletedAt', 'is', null).executeTakeFirst();
+    if (!actor) {
+      throw new BadRequestException('Household is unavailable');
+    }
+    const admin = await this.db.selectFrom('user').select(['id', 'name', 'email'])
+      .where('householdId', '=', actor.householdId).where('isHouseholdAdmin', '=', true)
+      .where('deletedAt', 'is', null).executeTakeFirst();
+    if (!admin) {
+      throw new BadRequestException('Household admin is unavailable');
+    }
+    return admin;
+  }
+
   async getOwnHouseholdMembers(userId: string) {
     const actor = await this.db.selectFrom('user').select('householdId')
       .where('id', '=', userId).where('deletedAt', 'is', null).executeTakeFirst();

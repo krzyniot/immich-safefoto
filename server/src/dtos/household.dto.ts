@@ -42,3 +42,10 @@ export const HouseholdStoragePoolSchema = z.object({
 }).meta({ id: 'HouseholdStoragePoolDto' });
 
 export class HouseholdStoragePoolDto extends createZodDto(HouseholdStoragePoolSchema) {}
+
+export const HouseholdAdminSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  email: z.email(),
+}).meta({ id: 'HouseholdAdminDto' });
+export class HouseholdAdminDto extends createZodDto(HouseholdAdminSchema) {}

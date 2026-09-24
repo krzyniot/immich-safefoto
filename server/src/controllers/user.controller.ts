@@ -20,7 +20,7 @@ import { NextFunction, Response } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
-import { HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdAdminDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
@@ -79,6 +79,14 @@ export class UserController {
     history: new HistoryBuilder().added('v3').beta('v3') })
   getMyHouseholdMembers(@Auth() auth: AuthDto): Promise<HouseholdMemberDto[]> {
     return this.service.getOwnHouseholdMembers(auth);
+  }
+
+  @Get('me/household/admin')
+  @Authenticated({ permission: Permission.UserRead })
+  @Endpoint({ summary: 'Get the administrator of my SafeFoto household',
+    history: new HistoryBuilder().added('v3').beta('v3') })
+  getMyHouseholdAdmin(@Auth() auth: AuthDto): Promise<HouseholdAdminDto> {
+    return this.service.getOwnHouseholdAdmin(auth);
   }
 
   @Put('me/household/quota')

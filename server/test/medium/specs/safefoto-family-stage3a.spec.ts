@@ -93,6 +93,20 @@ describe('SafeFoto household management - Stage 3A', () => {
     expect(members.filter((member) => member.isHouseholdAdmin).map((member) => member.id)).toEqual([admin.id]);
   });
 
+  it('returns the current admin of the caller household only', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: member } = await ctx.newUser();
+    const { user: outsider } = await ctx.newUser();
+    await users.moveToHouseholdOf(member.id, admin.id);
+
+    await expect(users.getOwnHouseholdAdmin(member.id)).resolves.toMatchObject({
+      id: admin.id, name: admin.name, email: admin.email,
+    });
+    await expect(users.getOwnHouseholdAdmin(outsider.id)).resolves.toMatchObject({
+      id: outsider.id, name: outsider.name, email: outsider.email,
+    });
+  });
+
   it('rejects a seventh member without changing membership', async () => {
     const { user: admin } = await ctx.newUser();
     for (let index = 0; index < 5; index++) {

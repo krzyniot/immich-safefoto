@@ -102,6 +102,16 @@ describe(UserController.name, () => {
     });
   });
 
+  describe('GET /users/me/household/admin', () => {
+    it('returns the current household admin from authenticated context', async () => {
+      await request(ctx.getHttpServer()).get('/users/me/household/admin');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserRead }),
+      }));
+      expect(service.getOwnHouseholdAdmin).toHaveBeenCalledWith(undefined);
+    });
+  });
+
   describe('SafeFoto household administration routes', () => {
     it('transfers household administration to an explicit UUID successor', async () => {
       const successorId = factory.uuid();
