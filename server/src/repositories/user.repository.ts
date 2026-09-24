@@ -250,6 +250,27 @@ export class UserRepository {
       ? null : Number(household.quotaSizeInBytes), memberCount: Number(household.memberCount) };
   }
 
+  async getOwnHouseholdMembers(userId: string) {
+    const actor = await this.db.selectFrom('user').select('householdId')
+      .where('id', '=', userId).where('deletedAt', 'is', null).executeTakeFirst();
+    if (!actor) {
+      throw new NotFoundException('Household not found');
+    }
+    const members = await this.db.selectFrom('user')
+      .select(['id', 'name', 'email', 'isHouseholdAdmin', 'quotaSizeInBytes', 'quotaUsageInBytes'])
+      .where('householdId', '=', actor.householdId)
+      .where('deletedAt', 'is', null)
+      .orderBy('isHouseholdAdmin', 'desc')
+      .orderBy('createdAt')
+      .orderBy('id')
+      .execute();
+    return members.map((member) => ({
+      ...member,
+      quotaSizeInBytes: member.quotaSizeInBytes === null ? null : Number(member.quotaSizeInBytes),
+      quotaUsageInBytes: Number(member.quotaUsageInBytes),
+    }));
+  }
+
   async getHouseholdUsage(householdId: string) {
     const members = await this.db.selectFrom('user').select('quotaUsageInBytes')
       .where('householdId', '=', householdId).where('deletedAt', 'is', null).execute();
@@ -431,6 +452,41 @@ export class UserRepository {
   listHouseholdInvitations(inviteeId: string) {
     return this.db.selectFrom('household_invitation').selectAll()
       .where('inviteeId', '=', inviteeId).where('status', '=', 'PENDING').execute();
+  }
+
+  async listOutgoingHouseholdInvitations(adminId: string) {
+    const admin = await this.db.selectFrom('user').select(['householdId', 'isHouseholdAdmin'])
+      .where('id', '=', adminId).where('deletedAt', 'is', null).executeTakeFirst();
+    if (!admin?.isHouseholdAdmin) {
+      throw new ForbiddenException('Household admin required');
+    }
+    return this.db.selectFrom('household_invitation as invitation')
+      .innerJoin('user as invitee', 'invitee.id', 'invitation.inviteeId')
+      .innerJoin('user as admin', 'admin.id', 'invitation.adminId')
+      .select([
+        'invitation.id', 'invitation.householdId', 'invitation.status', 'invitation.createdAt',
+        'invitee.id as inviteeId', 'invitee.name as inviteeName', 'invitee.email as inviteeEmail',
+        'admin.id as adminId', 'admin.name as adminName', 'admin.email as adminEmail',
+      ])
+      .where('invitation.householdId', '=', admin.householdId)
+      .where('invitation.status', '=', 'PENDING')
+      .orderBy('invitation.createdAt', 'desc')
+      .execute();
+  }
+
+  async listIncomingHouseholdInvitations(inviteeId: string) {
+    return this.db.selectFrom('household_invitation as invitation')
+      .innerJoin('user as invitee', 'invitee.id', 'invitation.inviteeId')
+      .innerJoin('user as admin', 'admin.id', 'invitation.adminId')
+      .select([
+        'invitation.id', 'invitation.householdId', 'invitation.status', 'invitation.createdAt',
+        'invitee.id as inviteeId', 'invitee.name as inviteeName', 'invitee.email as inviteeEmail',
+        'admin.id as adminId', 'admin.name as adminName', 'admin.email as adminEmail',
+      ])
+      .where('invitation.inviteeId', '=', inviteeId)
+      .where('invitation.status', '=', 'PENDING')
+      .orderBy('invitation.createdAt', 'desc')
+      .execute();
   }
 
   async getHouseholdInvitationPreview(inviteeId: string, invitationId: string) {

@@ -38,6 +38,21 @@ describe('SafeFoto household invitations - Stage 3B', () => {
     await expect(users.createHouseholdInvitation(admin.id, outsider.id)).rejects.toThrow('already pending');
   });
 
+  it('lists pending invitations for both household admin and invitee', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: invitee } = await ctx.newUser();
+    const invitation = await users.createHouseholdInvitation(admin.id, invitee.id);
+    const outgoing = await users.listOutgoingHouseholdInvitations(admin.id);
+    const incoming = await users.listIncomingHouseholdInvitations(invitee.id);
+    expect(outgoing).toHaveLength(1);
+    expect(incoming).toHaveLength(1);
+    expect(outgoing[0]).toMatchObject({ id: invitation.id, inviteeId: invitee.id, adminId: admin.id });
+    expect(incoming[0]).toMatchObject({ id: invitation.id, inviteeId: invitee.id, adminId: admin.id });
+    await users.cancelHouseholdInvitation(admin.id, invitation.id);
+    await expect(users.listOutgoingHouseholdInvitations(admin.id)).resolves.toHaveLength(0);
+    await expect(users.listIncomingHouseholdInvitations(invitee.id)).resolves.toHaveLength(0);
+  });
+
   it('rechecks capacity at acceptance and rolls back membership and invitation on failure', async () => {
     const { user: admin } = await ctx.newUser();
     const { user: invitee } = await ctx.newUser();

@@ -48,6 +48,80 @@ describe(UserController.name, () => {
     });
   });
 
+  describe('GET /users/me/household/members', () => {
+    it('uses the authenticated user identity only', async () => {
+      await request(ctx.getHttpServer()).get('/users/me/household/members');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserRead }),
+      }));
+      expect(service.getOwnHouseholdMembers).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  describe('SafeFoto household invitation routes', () => {
+    it('lists outgoing invitations for the authenticated user', async () => {
+      await request(ctx.getHttpServer()).get('/users/me/household/invitations/outgoing');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserRead }),
+      }));
+      expect(service.listOwnOutgoingHouseholdInvitations).toHaveBeenCalledWith(undefined);
+    });
+
+    it('lists incoming invitations for the authenticated user', async () => {
+      await request(ctx.getHttpServer()).get('/users/me/household/invitations/incoming');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserRead }),
+      }));
+      expect(service.listOwnIncomingHouseholdInvitations).toHaveBeenCalledWith(undefined);
+    });
+
+    it('validates email before creating an invitation', async () => {
+      const bad = await request(ctx.getHttpServer()).post('/users/me/household/invitations').send({ email: 'bad' });
+      expect(bad.status).toBe(400);
+      expect(service.createOwnHouseholdInvitation).not.toHaveBeenCalled();
+
+      const dto = { email: 'family@example.test' };
+      await request(ctx.getHttpServer()).post('/users/me/household/invitations').send(dto);
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserUpdate }),
+      }));
+      expect(service.createOwnHouseholdInvitation).toHaveBeenCalledWith(undefined, dto);
+    });
+
+    it('accepts rejects and cancels only UUID invitation ids', async () => {
+      const id = factory.uuid();
+      await request(ctx.getHttpServer()).post(`/users/me/household/invitations/${id}/accept`);
+      expect(service.acceptOwnHouseholdInvitation).toHaveBeenCalledWith(undefined, id);
+      await request(ctx.getHttpServer()).post(`/users/me/household/invitations/${id}/reject`);
+      expect(service.rejectOwnHouseholdInvitation).toHaveBeenCalledWith(undefined, id);
+      await request(ctx.getHttpServer()).delete(`/users/me/household/invitations/${id}`);
+      expect(service.cancelOwnHouseholdInvitation).toHaveBeenCalledWith(undefined, id);
+
+      const bad = await request(ctx.getHttpServer()).post('/users/me/household/invitations/not-a-uuid/accept');
+      expect(bad.status).toBe(400);
+    });
+  });
+
+  describe('PUT /users/me/household/quota', () => {
+    it('requires user-update permission and forwards validated allocation', async () => {
+      const dto = { quotaSizeInBytes: 4 * 1024 ** 3, allocation: { mode: 'auto' } };
+      await request(ctx.getHttpServer()).put('/users/me/household/quota').send(dto);
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserUpdate }),
+      }));
+      expect(service.updateOwnHouseholdQuota).toHaveBeenCalledWith(undefined, dto);
+    });
+
+    it('rejects malformed manual allocation before service call', async () => {
+      const { status } = await request(ctx.getHttpServer()).put('/users/me/household/quota').send({
+        quotaSizeInBytes: 4 * 1024 ** 3,
+        allocation: { mode: 'manual', limits: { user: -1 } },
+      });
+      expect(status).toBe(400);
+      expect(service.updateOwnHouseholdQuota).not.toHaveBeenCalled();
+    });
+  });
+
   describe('PUT /users/me', () => {
     it('should be an authenticated route', async () => {
       await request(ctx.getHttpServer()).put('/users/me');

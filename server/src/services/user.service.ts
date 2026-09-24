@@ -5,7 +5,8 @@ import { SALT_ROUNDS } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent, OnJob } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
@@ -28,6 +29,62 @@ import { generateProfileImage } from 'src/utils/profile-image';
 export class UserService extends BaseService {
   getOwnHouseholdSummary(auth: AuthDto): Promise<HouseholdSummaryDto> {
     return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
+  getOwnHouseholdMembers(auth: AuthDto): Promise<HouseholdMemberDto[]> {
+    return this.userRepository.getOwnHouseholdMembers(auth.user.id);
+  }
+
+  async updateOwnHouseholdQuota(auth: AuthDto, dto: HouseholdQuotaUpdateDto): Promise<HouseholdSummaryDto> {
+    await this.userRepository.setHouseholdQuota(auth.user.id, dto.quotaSizeInBytes, dto.allocation);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
+  private mapHouseholdInvitation(row: {
+    id: string; householdId: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED'; createdAt: Date;
+    inviteeId: string; inviteeName: string; inviteeEmail: string; adminId: string; adminName: string; adminEmail: string;
+  }): HouseholdInvitationResponseDto {
+    return {
+      id: row.id, householdId: row.householdId, status: row.status, createdAt: row.createdAt,
+      invitee: { id: row.inviteeId, name: row.inviteeName, email: row.inviteeEmail },
+      admin: { id: row.adminId, name: row.adminName, email: row.adminEmail },
+    };
+  }
+
+  async createOwnHouseholdInvitation(auth: AuthDto, dto: HouseholdInvitationCreateDto): Promise<HouseholdInvitationResponseDto> {
+    const email = dto.email.trim().toLowerCase();
+    const invitee = await this.userRepository.getByEmail(email);
+    if (!invitee || invitee.id === auth.user.id) {
+      throw new BadRequestException('Invitee must be another active SafeFoto user');
+    }
+    const invitation = await this.userRepository.createHouseholdInvitation(auth.user.id, invitee.id);
+    const rows = await this.userRepository.listOutgoingHouseholdInvitations(auth.user.id);
+    const row = rows.find(({ id }) => id === invitation.id);
+    if (!row) {
+      throw new BadRequestException('Household invitation is unavailable');
+    }
+    return this.mapHouseholdInvitation(row);
+  }
+
+  async listOwnOutgoingHouseholdInvitations(auth: AuthDto): Promise<HouseholdInvitationResponseDto[]> {
+    return (await this.userRepository.listOutgoingHouseholdInvitations(auth.user.id)).map((row) => this.mapHouseholdInvitation(row));
+  }
+
+  async listOwnIncomingHouseholdInvitations(auth: AuthDto): Promise<HouseholdInvitationResponseDto[]> {
+    return (await this.userRepository.listIncomingHouseholdInvitations(auth.user.id)).map((row) => this.mapHouseholdInvitation(row));
+  }
+
+  async acceptOwnHouseholdInvitation(auth: AuthDto, invitationId: string) {
+    await this.userRepository.acceptHouseholdInvitation(auth.user.id, invitationId);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
+  async rejectOwnHouseholdInvitation(auth: AuthDto, invitationId: string) {
+    await this.userRepository.rejectHouseholdInvitation(auth.user.id, invitationId);
+  }
+
+  async cancelOwnHouseholdInvitation(auth: AuthDto, invitationId: string) {
+    await this.userRepository.cancelHouseholdInvitation(auth.user.id, invitationId);
   }
 
   async search(auth: AuthDto): Promise<UserResponseDto[]> {

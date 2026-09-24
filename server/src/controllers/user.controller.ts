@@ -20,7 +20,8 @@ import { NextFunction, Response } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
-import { HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
 import { UserPreferencesResponseDto, UserPreferencesUpdateDto } from 'src/dtos/user-preferences.dto';
@@ -70,6 +71,72 @@ export class UserController {
     history: new HistoryBuilder().added('v3').beta('v3') })
   getMyHousehold(@Auth() auth: AuthDto): Promise<HouseholdSummaryDto> {
     return this.service.getOwnHouseholdSummary(auth);
+  }
+
+  @Get('me/household/members')
+  @Authenticated({ permission: Permission.UserRead })
+  @Endpoint({ summary: 'Get my SafeFoto household members',
+    history: new HistoryBuilder().added('v3').beta('v3') })
+  getMyHouseholdMembers(@Auth() auth: AuthDto): Promise<HouseholdMemberDto[]> {
+    return this.service.getOwnHouseholdMembers(auth);
+  }
+
+  @Put('me/household/quota')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Update my SafeFoto household quota allocation',
+    history: new HistoryBuilder().added('v3').beta('v3') })
+  updateMyHouseholdQuota(
+    @Auth() auth: AuthDto,
+    @Body() dto: HouseholdQuotaUpdateDto,
+  ): Promise<HouseholdSummaryDto> {
+    return this.service.updateOwnHouseholdQuota(auth, dto);
+  }
+
+  @Get('me/household/invitations/outgoing')
+  @Authenticated({ permission: Permission.UserRead })
+  @Endpoint({ summary: 'List invitations sent from my SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
+  listMyOutgoingHouseholdInvitations(@Auth() auth: AuthDto): Promise<HouseholdInvitationResponseDto[]> {
+    return this.service.listOwnOutgoingHouseholdInvitations(auth);
+  }
+
+  @Get('me/household/invitations/incoming')
+  @Authenticated({ permission: Permission.UserRead })
+  @Endpoint({ summary: 'List my incoming SafeFoto household invitations', history: new HistoryBuilder().added('v3').beta('v3') })
+  listMyIncomingHouseholdInvitations(@Auth() auth: AuthDto): Promise<HouseholdInvitationResponseDto[]> {
+    return this.service.listOwnIncomingHouseholdInvitations(auth);
+  }
+
+  @Post('me/household/invitations')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Invite a SafeFoto user to my household', history: new HistoryBuilder().added('v3').beta('v3') })
+  createMyHouseholdInvitation(
+    @Auth() auth: AuthDto,
+    @Body() dto: HouseholdInvitationCreateDto,
+  ): Promise<HouseholdInvitationResponseDto> {
+    return this.service.createOwnHouseholdInvitation(auth, dto);
+  }
+
+  @Post('me/household/invitations/:id/accept')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Accept a SafeFoto household invitation', history: new HistoryBuilder().added('v3').beta('v3') })
+  acceptMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<HouseholdSummaryDto> {
+    return this.service.acceptOwnHouseholdInvitation(auth, id);
+  }
+
+  @Post('me/household/invitations/:id/reject')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Reject a SafeFoto household invitation', history: new HistoryBuilder().added('v3').beta('v3') })
+  rejectMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
+    return this.service.rejectOwnHouseholdInvitation(auth, id);
+  }
+
+  @Delete('me/household/invitations/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Cancel an invitation sent from my SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
+  cancelMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
+    return this.service.cancelOwnHouseholdInvitation(auth, id);
   }
 
   @Get('me/calendar-heatmap')
