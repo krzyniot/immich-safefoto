@@ -101,6 +101,11 @@ export class UserService extends BaseService {
     return this.userRepository.getOwnHouseholdSummary(auth.user.id);
   }
 
+  async removeOwnHouseholdMember(auth: AuthDto, memberId: string): Promise<HouseholdSummaryDto> {
+    await this.userRepository.removeHouseholdMember(auth.user.id, memberId);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
   async search(auth: AuthDto): Promise<UserResponseDto[]> {
     const users = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
     return users.map((user) => mapUser(user));

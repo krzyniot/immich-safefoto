@@ -132,6 +132,18 @@ describe(UserController.name, () => {
       }));
       expect(service.leaveOwnHousehold).toHaveBeenCalledWith(undefined);
     });
+
+    it('removes an explicit UUID member from the authenticated household only', async () => {
+      const memberId = factory.uuid();
+      await request(ctx.getHttpServer()).delete(`/users/me/household/members/${memberId}`);
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserUpdate }),
+      }));
+      expect(service.removeOwnHouseholdMember).toHaveBeenCalledWith(undefined, memberId);
+
+      const bad = await request(ctx.getHttpServer()).delete('/users/me/household/members/not-a-uuid');
+      expect(bad.status).toBe(400);
+    });
   });
 
   describe('PUT /users/me/household/quota', () => {

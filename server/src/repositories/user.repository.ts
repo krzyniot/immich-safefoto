@@ -613,6 +613,39 @@ export class UserRepository {
     });
   }
 
+  async removeHouseholdMember(adminId: string, memberId: string) {
+    if (adminId === memberId) {
+      throw new BadRequestException('Household admin cannot remove self');
+    }
+    return this.db.transaction().execute(async (tx) => {
+      const admin = await tx
+        .selectFrom('user')
+        .select(['id', 'householdId', 'isHouseholdAdmin'])
+        .where('id', '=', adminId)
+        .where('deletedAt', 'is', null)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!admin?.isHouseholdAdmin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      const member = await tx
+        .selectFrom('user')
+        .select(['id', 'householdId', 'isHouseholdAdmin'])
+        .where('id', '=', memberId)
+        .where('deletedAt', 'is', null)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!member || member.householdId !== admin.householdId) {
+        throw new BadRequestException('Member must belong to the household');
+      }
+      if (member.isHouseholdAdmin) {
+        throw new BadRequestException('Household admin cannot be removed');
+      }
+      const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();
+      return this.moveUserToHousehold(tx, member, household.id);
+    });
+  }
+
   async moveToNewHousehold(userId: string) {
     return this.db.transaction().execute(async (tx) => {
       const user = await tx

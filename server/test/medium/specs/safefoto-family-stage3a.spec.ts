@@ -186,6 +186,28 @@ describe('SafeFoto household management - Stage 3A', () => {
     ]));
   });
 
+  it('allows household admin to remove only a regular member into a new one-person household', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: member } = await ctx.newUser();
+    const { user: outsider } = await ctx.newUser();
+    await users.moveToHouseholdOf(member.id, admin.id);
+    const source = await users.getHouseholdId(admin.id);
+
+    await expect(users.removeHouseholdMember(member.id, admin.id)).rejects.toThrow('Household admin required');
+    await expect(users.removeHouseholdMember(admin.id, outsider.id)).rejects.toThrow('Member must belong');
+    await expect(users.removeHouseholdMember(admin.id, admin.id)).rejects.toThrow('cannot remove self');
+
+    await users.removeHouseholdMember(admin.id, member.id);
+    const adminAfter = await users.getHouseholdId(admin.id);
+    const memberAfter = await users.getHouseholdId(member.id);
+    expect(adminAfter?.householdId).toBe(source?.householdId);
+    expect(memberAfter?.householdId).not.toBe(source?.householdId);
+    await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', member.id)
+      .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: true });
+    await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', admin.id)
+      .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: true });
+  });
+
   it('transfers administration only to a member of the same household', async () => {
     const { user: admin } = await ctx.newUser();
     const { user: member } = await ctx.newUser();

@@ -161,6 +161,13 @@ export class UserController {
     return this.service.leaveOwnHousehold(auth);
   }
 
+  @Delete('me/household/members/:id')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Remove a member from my SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
+  removeMyHouseholdMember(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<HouseholdSummaryDto> {
+    return this.service.removeOwnHouseholdMember(auth, id);
+  }
+
   @Get('me/calendar-heatmap')
   @Authenticated({ permission: Permission.UserRead })
   @Endpoint({
