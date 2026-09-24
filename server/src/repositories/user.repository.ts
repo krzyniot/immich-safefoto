@@ -599,7 +599,7 @@ export class UserRepository {
 
       const user = await tx
         .selectFrom('user')
-        .select(['id', 'householdId'])
+        .select(['id', 'householdId', 'quotaUsageInBytes'])
         .where('id', '=', userId)
         .where('deletedAt', 'is', null)
         .forUpdate()
@@ -630,7 +630,7 @@ export class UserRepository {
       }
       const member = await tx
         .selectFrom('user')
-        .select(['id', 'householdId', 'isHouseholdAdmin'])
+        .select(['id', 'householdId', 'isHouseholdAdmin', 'quotaUsageInBytes'])
         .where('id', '=', memberId)
         .where('deletedAt', 'is', null)
         .forUpdate()
@@ -642,7 +642,11 @@ export class UserRepository {
         throw new BadRequestException('Household admin cannot be removed');
       }
       const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();
-      return this.moveUserToHousehold(tx, member, household.id);
+      const moved = await this.moveUserToHousehold(tx, member, household.id);
+      if (moved) {
+        await this.applyStandaloneHoldingQuota(tx, household.id, member.id, Number(member.quotaUsageInBytes));
+      }
+      return moved;
     });
   }
 
@@ -650,7 +654,7 @@ export class UserRepository {
     return this.db.transaction().execute(async (tx) => {
       const user = await tx
         .selectFrom('user')
-        .select(['id', 'householdId'])
+        .select(['id', 'householdId', 'quotaUsageInBytes'])
         .where('id', '=', userId)
         .where('deletedAt', 'is', null)
         .forUpdate()
@@ -671,8 +675,32 @@ export class UserRepository {
       }
 
       const household = await tx.insertInto('household').defaultValues().returning('id').executeTakeFirstOrThrow();
-      return this.moveUserToHousehold(tx, user, household.id);
+      const moved = await this.moveUserToHousehold(tx, user, household.id);
+      if (moved) {
+        await this.applyStandaloneHoldingQuota(tx, household.id, user.id, Number(user.quotaUsageInBytes));
+      }
+      return moved;
     });
+  }
+
+  private async applyStandaloneHoldingQuota(
+    tx: Transaction<DB>,
+    householdId: string,
+    userId: string,
+    usageBytes: number,
+  ) {
+    const holdingQuota = Math.max(1, Number.isSafeInteger(usageBytes) && usageBytes >= 0 ? usageBytes : 0);
+    await tx
+      .updateTable('household')
+      .set({ quotaSizeInBytes: holdingQuota, isQuotaAutoBalanced: true })
+      .where('id', '=', householdId)
+      .execute();
+    await tx
+      .updateTable('user')
+      .set({ quotaSizeInBytes: holdingQuota })
+      .where('id', '=', userId)
+      .where('householdId', '=', householdId)
+      .execute();
   }
 
   private async moveUserToHousehold(

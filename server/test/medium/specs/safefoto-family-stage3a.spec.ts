@@ -168,6 +168,23 @@ describe('SafeFoto household management - Stage 3A', () => {
       .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: false });
   });
 
+  it('gives a leaving regular member a finite holding quota equal to current usage', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: member } = await ctx.newUser();
+    await users.moveToHouseholdOf(member.id, admin.id);
+    await database.updateTable('user').set({ quotaUsageInBytes: 1234567 }).where('id', '=', member.id).execute();
+
+    await users.moveToNewHousehold(member.id);
+
+    const moved = await database.selectFrom('user').select(['householdId', 'quotaSizeInBytes', 'isHouseholdAdmin'])
+      .where('id', '=', member.id).executeTakeFirstOrThrow();
+    expect(moved.isHouseholdAdmin).toBe(true);
+    expect(Number(moved.quotaSizeInBytes)).toBe(1234567);
+    const household = await database.selectFrom('household').select('quotaSizeInBytes')
+      .where('id', '=', moved.householdId).executeTakeFirstOrThrow();
+    expect(Number(household.quotaSizeInBytes)).toBe(1234567);
+  });
+
   it('moves the sole admin to another household and removes the empty household', async () => {
     const { user: admin } = await ctx.newUser();
     const { user: otherAdmin } = await ctx.newUser();
@@ -197,13 +214,20 @@ describe('SafeFoto household management - Stage 3A', () => {
     await expect(users.removeHouseholdMember(admin.id, outsider.id)).rejects.toThrow('Member must belong');
     await expect(users.removeHouseholdMember(admin.id, admin.id)).rejects.toThrow('cannot remove self');
 
+    const usageBefore = await database.selectFrom('user').select('quotaUsageInBytes').where('id', '=', member.id)
+      .executeTakeFirstOrThrow();
     await users.removeHouseholdMember(admin.id, member.id);
     const adminAfter = await users.getHouseholdId(admin.id);
     const memberAfter = await users.getHouseholdId(member.id);
     expect(adminAfter?.householdId).toBe(source?.householdId);
     expect(memberAfter?.householdId).not.toBe(source?.householdId);
-    await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', member.id)
-      .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: true });
+    const removedMember = await database.selectFrom('user').select(['isHouseholdAdmin', 'quotaSizeInBytes'])
+      .where('id', '=', member.id).executeTakeFirstOrThrow();
+    expect(removedMember.isHouseholdAdmin).toBe(true);
+    expect(Number(removedMember.quotaSizeInBytes)).toBe(Math.max(1, Number(usageBefore.quotaUsageInBytes)));
+    const standaloneHousehold = await database.selectFrom('household').select('quotaSizeInBytes')
+      .where('id', '=', memberAfter!.householdId).executeTakeFirstOrThrow();
+    expect(Number(standaloneHousehold.quotaSizeInBytes)).toBe(Math.max(1, Number(usageBefore.quotaUsageInBytes)));
     await expect(database.selectFrom('user').select('isHouseholdAdmin').where('id', '=', admin.id)
       .executeTakeFirstOrThrow()).resolves.toMatchObject({ isHouseholdAdmin: true });
   });
