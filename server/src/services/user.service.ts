@@ -87,6 +87,16 @@ export class UserService extends BaseService {
     await this.userRepository.cancelHouseholdInvitation(auth.user.id, invitationId);
   }
 
+  async transferOwnHouseholdAdmin(auth: AuthDto, successorId: string): Promise<HouseholdSummaryDto> {
+    await this.userRepository.transferHouseholdAdmin(auth.user.id, successorId);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
+  async leaveOwnHousehold(auth: AuthDto): Promise<HouseholdSummaryDto> {
+    await this.userRepository.moveToNewHousehold(auth.user.id);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
   async search(auth: AuthDto): Promise<UserResponseDto[]> {
     const users = await this.familyPolicy.getDiscoverableUsers(auth.user.id);
     return users.map((user) => mapUser(user));

@@ -102,6 +102,28 @@ describe(UserController.name, () => {
     });
   });
 
+  describe('SafeFoto household administration routes', () => {
+    it('transfers household administration to an explicit UUID successor', async () => {
+      const successorId = factory.uuid();
+      await request(ctx.getHttpServer()).post(`/users/me/household/admin-transfer/${successorId}`);
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserUpdate }),
+      }));
+      expect(service.transferOwnHouseholdAdmin).toHaveBeenCalledWith(undefined, successorId);
+
+      const bad = await request(ctx.getHttpServer()).post('/users/me/household/admin-transfer/not-a-uuid');
+      expect(bad.status).toBe(400);
+    });
+
+    it('leaves the current household through authenticated user context only', async () => {
+      await request(ctx.getHttpServer()).post('/users/me/household/leave');
+      expect(ctx.authenticate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({ permission: Permission.UserUpdate }),
+      }));
+      expect(service.leaveOwnHousehold).toHaveBeenCalledWith(undefined);
+    });
+  });
+
   describe('PUT /users/me/household/quota', () => {
     it('requires user-update permission and forwards validated allocation', async () => {
       const dto = { quotaSizeInBytes: 4 * 1024 ** 3, allocation: { mode: 'auto' } };

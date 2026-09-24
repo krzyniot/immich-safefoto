@@ -139,6 +139,20 @@ export class UserController {
     return this.service.cancelOwnHouseholdInvitation(auth, id);
   }
 
+  @Post('me/household/admin-transfer/:id')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Transfer administration of my SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
+  transferMyHouseholdAdmin(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<HouseholdSummaryDto> {
+    return this.service.transferOwnHouseholdAdmin(auth, id);
+  }
+
+  @Post('me/household/leave')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Leave my current SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
+  leaveMyHousehold(@Auth() auth: AuthDto): Promise<HouseholdSummaryDto> {
+    return this.service.leaveOwnHousehold(auth);
+  }
+
   @Get('me/calendar-heatmap')
   @Authenticated({ permission: Permission.UserRead })
   @Endpoint({
