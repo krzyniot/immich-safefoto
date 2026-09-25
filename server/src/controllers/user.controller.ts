@@ -20,7 +20,7 @@ import { NextFunction, Response } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
-import { HouseholdAdminDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
@@ -159,6 +159,13 @@ export class UserController {
   @Endpoint({ summary: 'Leave my current SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
   leaveMyHousehold(@Auth() auth: AuthDto): Promise<HouseholdSummaryDto> {
     return this.service.leaveOwnHousehold(auth);
+  }
+
+  @Post('me/household/members')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Create a SafeFoto user directly in my household', history: new HistoryBuilder().added('v3').beta('v3') })
+  createMyHouseholdMember(@Auth() auth: AuthDto, @Body() dto: HouseholdMemberCreateDto): Promise<UserAdminResponseDto> {
+    return this.service.createOwnHouseholdMember(auth, dto);
   }
 
   @Delete('me/household/members/:id')

@@ -5,7 +5,7 @@ import { SALT_ROUNDS } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent, OnJob } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { HouseholdAdminDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
@@ -15,7 +15,7 @@ import { CreateProfileImageResponseDto } from 'src/dtos/user-profile.dto';
 import { UserAdminResponseDto, UserResponseDto, UserUpdateMeDto, mapUser, mapUserAdmin } from 'src/dtos/user.dto';
 import { CacheControl, JobName, JobStatus, QueueName, StorageFolder, UserMetadataKey } from 'src/enum';
 import { ArgOf } from 'src/repositories/event.repository';
-import { UserFindOptions } from 'src/repositories/user.repository';
+import { UserCreate, UserFindOptions } from 'src/repositories/user.repository';
 import { UserTable } from 'src/schema/tables/user.table';
 import { BaseService } from 'src/services/base.service';
 import { getCalendarHeatmap } from 'src/services/shared/user-methods';
@@ -104,6 +104,28 @@ export class UserService extends BaseService {
   async removeOwnHouseholdMember(auth: AuthDto, memberId: string): Promise<HouseholdSummaryDto> {
     await this.userRepository.removeHouseholdMember(auth.user.id, memberId);
     return this.userRepository.getOwnHouseholdSummary(auth.user.id);
+  }
+
+  async createOwnHouseholdMember(auth: AuthDto, dto: HouseholdMemberCreateDto): Promise<UserAdminResponseDto> {
+    const email = dto.email.trim().toLowerCase();
+    const exists = await this.userRepository.getByEmail(email);
+    if (exists) {
+      throw new BadRequestException('Email is not available');
+    }
+    const password = await this.cryptoRepository.hashBcrypt(dto.password, SALT_ROUNDS);
+    const payload: UserCreate = {
+      email,
+      name: dto.name.trim(),
+      password,
+      isAdmin: false,
+      shouldChangePassword: true,
+    };
+    const user = await this.userRepository.createHouseholdMember(
+      auth.user.id, payload, dto.forceAutoBalanceIfNeeded ?? false,
+    );
+    await this.eventRepository.emit('UserCreate', user);
+    await this.eventRepository.emit('UserSignup', { notify: false, id: user.id, password: dto.password });
+    return mapUserAdmin(user);
   }
 
   async search(auth: AuthDto): Promise<UserResponseDto[]> {

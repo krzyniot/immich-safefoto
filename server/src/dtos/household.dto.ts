@@ -22,6 +22,16 @@ export const HouseholdMemberSchema = z.object({
 
 export class HouseholdMemberDto extends createZodDto(HouseholdMemberSchema) {}
 
+
+export const HouseholdMemberCreateSchema = z.object({
+  email: z.email(),
+  name: z.string().trim().min(1).max(128),
+  password: z.string().min(8).max(128),
+  forceAutoBalanceIfNeeded: z.boolean().optional().default(false),
+}).meta({ id: 'HouseholdMemberCreateDto' });
+
+export class HouseholdMemberCreateDto extends createZodDto(HouseholdMemberCreateSchema) {}
+
 export const HouseholdQuotaUpdateSchema = z.object({
   quotaSizeInBytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   allocation: z.discriminatedUnion('mode', [

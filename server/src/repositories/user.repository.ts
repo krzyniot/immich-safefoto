@@ -225,6 +225,79 @@ export class UserRepository {
     });
   }
 
+  async createHouseholdMember(adminId: string, dto: UserCreate, forceAutoBalanceIfNeeded = false) {
+    return this.db.transaction().execute(async (tx) => {
+      const admin = await tx
+        .selectFrom('user')
+        .select(['householdId', 'isHouseholdAdmin'])
+        .where('id', '=', adminId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (!admin?.isHouseholdAdmin) {
+        throw new ForbiddenException('Household admin required');
+      }
+
+      const household = await tx
+        .selectFrom('household')
+        .select(['quotaSizeInBytes', 'isQuotaAutoBalanced'])
+        .where('id', '=', admin.householdId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!household) {
+        throw new NotFoundException('Household not found');
+      }
+
+      const members = await tx
+        .selectFrom('user')
+        .select(['id', 'quotaSizeInBytes', 'quotaUsageInBytes'])
+        .where('householdId', '=', admin.householdId)
+        .where('deletedAt', 'is', null)
+        .orderBy('createdAt')
+        .orderBy('id')
+        .execute();
+      if (members.length >= MAX_HOUSEHOLD_MEMBERS) {
+        throw new BadRequestException('Household is full');
+      }
+
+      let memberQuota: number | null = null;
+      let autoBalance = household.isQuotaAutoBalanced;
+      if (household.quotaSizeInBytes !== null) {
+        const pool = Number(household.quotaSizeInBytes);
+        if (!autoBalance) {
+          const allocated = members.reduce((sum, member) => sum + Number(member.quotaSizeInBytes ?? 0), 0);
+          memberQuota = MIN_MEMBER_QUOTA_BYTES;
+          if (pool - allocated < memberQuota) {
+            if (!forceAutoBalanceIfNeeded) {
+              throw new BadRequestException('Manual household quota has no free space; auto balance required');
+            }
+            autoBalance = true;
+            memberQuota = null;
+            await tx.updateTable('household').set({ isQuotaAutoBalanced: true }).where('id', '=', admin.householdId).execute();
+          }
+        }
+
+        if (autoBalance) {
+          const share = Math.floor(pool / (members.length + 1));
+          if (share < MIN_MEMBER_QUOTA_BYTES || members.some((member) => Number(member.quotaUsageInBytes) > share)) {
+            throw new BadRequestException('Household quota cannot accommodate another member');
+          }
+        }
+      }
+
+      const user = await tx
+        .insertInto('user')
+        .values({ ...dto, householdId: admin.householdId, isHouseholdAdmin: false, quotaSizeInBytes: memberQuota })
+        .returning(columns.userAdmin)
+        .returning(withMetadata)
+        .executeTakeFirstOrThrow();
+
+      if (autoBalance) {
+        await this.rebalanceHousehold(tx, admin.householdId);
+      }
+      return user;
+    });
+  }
+
   getHouseholdId(userId: string) {
     return this.db
       .selectFrom('user')
