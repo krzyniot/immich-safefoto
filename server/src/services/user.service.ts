@@ -5,7 +5,7 @@ import { SALT_ROUNDS } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent, OnJob } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdNameUpdateDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
@@ -33,6 +33,11 @@ export class UserService extends BaseService {
 
   getOwnHouseholdMembers(auth: AuthDto): Promise<HouseholdMemberDto[]> {
     return this.userRepository.getOwnHouseholdMembers(auth.user.id);
+  }
+
+  async updateOwnHouseholdName(auth: AuthDto, dto: HouseholdNameUpdateDto): Promise<HouseholdSummaryDto> {
+    await this.userRepository.updateOwnHouseholdName(auth.user.id, dto.name);
+    return this.userRepository.getOwnHouseholdSummary(auth.user.id);
   }
 
   getOwnHouseholdAdmin(auth: AuthDto): Promise<HouseholdAdminDto> {

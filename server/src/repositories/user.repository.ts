@@ -310,7 +310,7 @@ export class UserRepository {
   async getOwnHouseholdSummary(userId: string) {
     const household = await this.db.selectFrom('user')
       .innerJoin('household', 'household.id', 'user.householdId')
-      .select(['household.id as householdId', 'user.isHouseholdAdmin',
+      .select(['household.id as householdId', 'household.name', 'user.isHouseholdAdmin',
         'household.quotaSizeInBytes', 'household.isQuotaAutoBalanced'])
       .select((eb) => eb.selectFrom('user as member').select(eb.fn.countAll<number>().as('count'))
         .whereRef('member.householdId', '=', 'user.householdId')
@@ -321,6 +321,23 @@ export class UserRepository {
     }
     return { ...household, quotaSizeInBytes: household.quotaSizeInBytes === null
       ? null : Number(household.quotaSizeInBytes), memberCount: Number(household.memberCount) };
+  }
+
+  async updateOwnHouseholdName(adminId: string, name: string) {
+    return this.db.transaction().execute(async (tx) => {
+      const admin = await tx.selectFrom('user')
+        .select(['householdId', 'isHouseholdAdmin'])
+        .where('id', '=', adminId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (!admin?.isHouseholdAdmin) {
+        throw new ForbiddenException('Household admin required');
+      }
+      await tx.updateTable('household')
+        .set({ name: name.trim() })
+        .where('id', '=', admin.householdId)
+        .executeTakeFirstOrThrow();
+    });
   }
 
   async getOwnHouseholdAdmin(userId: string) {

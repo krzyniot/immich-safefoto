@@ -14,6 +14,9 @@ export class HouseholdTable {
   @PrimaryGeneratedColumn()
   id!: Generated<string>;
 
+  @Column({ type: 'character varying', length: 80, nullable: true })
+  name!: string | null;
+
   @Column({ type: 'bigint', nullable: true })
   quotaSizeInBytes!: ColumnType<number> | null;
 

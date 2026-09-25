@@ -3,6 +3,7 @@ import z from 'zod';
 
 export const HouseholdSummarySchema = z.object({
   householdId: z.uuid(),
+  name: z.string().nullable(),
   isHouseholdAdmin: z.boolean(),
   quotaSizeInBytes: z.number().int().nullable(),
   isQuotaAutoBalanced: z.boolean(),
@@ -10,6 +11,13 @@ export const HouseholdSummarySchema = z.object({
 }).meta({ id: 'HouseholdSummaryDto' });
 
 export class HouseholdSummaryDto extends createZodDto(HouseholdSummarySchema) {}
+
+
+export const HouseholdNameUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+}).meta({ id: 'HouseholdNameUpdateDto' });
+
+export class HouseholdNameUpdateDto extends createZodDto(HouseholdNameUpdateSchema) {}
 
 export const HouseholdMemberSchema = z.object({
   id: z.uuid(),

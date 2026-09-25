@@ -20,7 +20,7 @@ import { NextFunction, Response } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { CalendarHeatmapDto, CalendarHeatmapResponseDto } from 'src/dtos/calendar-heatmap.dto';
-import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
+import { HouseholdAdminDto, HouseholdMemberCreateDto, HouseholdMemberDto, HouseholdNameUpdateDto, HouseholdQuotaUpdateDto, HouseholdSummaryDto } from 'src/dtos/household.dto';
 import { HouseholdInvitationCreateDto, HouseholdInvitationResponseDto } from 'src/dtos/household-invitation.dto';
 import { LicenseKeyDto, LicenseResponseDto } from 'src/dtos/license.dto';
 import { OnboardingDto, OnboardingResponseDto } from 'src/dtos/onboarding.dto';
@@ -71,6 +71,13 @@ export class UserController {
     history: new HistoryBuilder().added('v3').beta('v3') })
   getMyHousehold(@Auth() auth: AuthDto): Promise<HouseholdSummaryDto> {
     return this.service.getOwnHouseholdSummary(auth);
+  }
+
+  @Put('me/household/name')
+  @Authenticated({ permission: Permission.UserUpdate })
+  @Endpoint({ summary: 'Update the name of my SafeFoto family', history: new HistoryBuilder().added('v3').beta('v3') })
+  updateMyHouseholdName(@Auth() auth: AuthDto, @Body() dto: HouseholdNameUpdateDto): Promise<HouseholdSummaryDto> {
+    return this.service.updateOwnHouseholdName(auth, dto);
   }
 
   @Get('me/household/members')

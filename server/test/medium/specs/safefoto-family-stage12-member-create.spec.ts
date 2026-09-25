@@ -106,4 +106,20 @@ describe('SafeFoto direct household member creation - Stage 12', () => {
     await expect(database.selectFrom('household').select('isQuotaAutoBalanced').where('id', '=', householdId)
       .executeTakeFirstOrThrow()).resolves.toMatchObject({ isQuotaAutoBalanced: false });
   });
+  it('lets the household admin set a family name visible in the household summary', async () => {
+    const { user: admin } = await ctx.newUser();
+    await users.updateOwnHouseholdName(admin.id, 'Rodzina Testowa');
+    const summary = await users.getOwnHouseholdSummary(admin.id);
+    expect(summary.name).toBe('Rodzina Testowa');
+  });
+
+  it('does not let a regular member rename the family', async () => {
+    const { user: admin } = await ctx.newUser();
+    const { user: member } = await ctx.newUser();
+    await users.moveToHouseholdOf(member.id, admin.id);
+    await expect(users.updateOwnHouseholdName(member.id, 'Nie moja nazwa')).rejects.toThrow('Household admin required');
+    const summary = await users.getOwnHouseholdSummary(admin.id);
+    expect(summary.name).toBeNull();
+  });
+
 });
