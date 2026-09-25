@@ -111,8 +111,11 @@ export class UserAdminService extends BaseService {
       throw new BadRequestException('Household not found');
     }
 
-    const members = await this.userRepository.getByHousehold(id);
-    return { householdId: household.householdId, members: members.map((member) => mapUser(member)) };
+    const [summary, members] = await Promise.all([
+      this.userRepository.getOwnHouseholdSummary(id),
+      this.userRepository.getByHousehold(id),
+    ]);
+    return { householdId: household.householdId, name: summary.name, members: members.map((member) => mapUser(member)) };
   }
 
   async moveToHousehold(

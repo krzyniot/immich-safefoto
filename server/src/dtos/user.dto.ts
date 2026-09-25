@@ -127,6 +127,7 @@ export class UserAdminHouseholdResponseDto extends createZodDto(UserAdminHouseho
 export const UserAdminHouseholdDetailsResponseSchema = z
   .object({
     householdId: z.uuidv4().describe('SafeFoto household ID'),
+    name: z.string().nullable().describe('Family name'),
     members: z.array(UserResponseSchema).describe('Active users in the household'),
   })
   .meta({ id: 'UserAdminHouseholdDetailsResponseDto' });
