@@ -26,12 +26,12 @@ describe('SafeFoto authenticated household contract - Stage 3E1', () => {
     await users.moveToHouseholdOf(member.id, admin.id);
     await users.setHouseholdQuota(admin.id, 4 * GiB, { mode: 'auto' });
     const householdId = (await users.getHouseholdId(admin.id))!.householdId;
-    expect(await users.getOwnHouseholdSummary(admin.id)).toEqual({ householdId,
+    expect(await users.getOwnHouseholdSummary(admin.id)).toEqual({ householdId, name: null,
       isHouseholdAdmin: true, quotaSizeInBytes: 4 * GiB, isQuotaAutoBalanced: true, memberCount: 2 });
-    expect(await users.getOwnHouseholdSummary(member.id)).toEqual({ householdId,
+    expect(await users.getOwnHouseholdSummary(member.id)).toEqual({ householdId, name: null,
       isHouseholdAdmin: false, quotaSizeInBytes: 4 * GiB, isQuotaAutoBalanced: true, memberCount: 2 });
     expect(Object.keys(await users.getOwnHouseholdSummary(member.id)).sort()).toEqual([
-      'householdId', 'isHouseholdAdmin', 'isQuotaAutoBalanced', 'memberCount', 'quotaSizeInBytes',
+      'householdId', 'isHouseholdAdmin', 'isQuotaAutoBalanced', 'memberCount', 'name', 'quotaSizeInBytes',
     ]);
   });
 
