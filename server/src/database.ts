@@ -359,7 +359,7 @@ export const columns = {
     'quotaUsageInBytes',
   ],
   tag: ['tag.id', 'tag.value', 'tag.createdAt', 'tag.updatedAt', 'tag.color', 'tag.parentId'],
-  apiKey: ['id', 'name', 'userId', 'createdAt', 'updatedAt', 'permissions'],
+  apiKey: ['id', 'name', 'userId', 'createdAt', 'updatedAt', 'permissions', 'isSystemManaged'],
   notification: ['id', 'createdAt', 'level', 'type', 'title', 'description', 'data', 'readAt'],
   pluginMethod: [
     'plugin_method.name',

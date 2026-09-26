@@ -20,6 +20,7 @@ export class ApiKeyFactory {
     return new ApiKeyFactory({
       createdAt: newDate(),
       id: newUuid(),
+      isSystemManaged: false,
       key: Buffer.from('api-key-buffer'),
       name: 'API Key',
       permissions: [Permission.All],

@@ -6,6 +6,16 @@ import { Permission } from 'src/enum';
 import { BaseService } from 'src/services/base.service';
 import { isGranted } from 'src/utils/access';
 
+const isSafeFotoPanelKey = (name: string, permissions: Permission[]) => {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  const requiredPermissions = [Permission.AdminUserRead, Permission.AdminUserCreate, Permission.AdminUserUpdate];
+  return (
+    normalizedName.startsWith('safefoto') &&
+    normalizedName.includes('panel') &&
+    requiredPermissions.every((permission) => permissions.includes(permission))
+  );
+};
+
 @Injectable()
 export class ApiKeyService extends BaseService {
   async create(auth: AuthDto, dto: ApiKeyCreateDto): Promise<ApiKeyCreateResponseDto> {
@@ -16,11 +26,13 @@ export class ApiKeyService extends BaseService {
       throw new BadRequestException('Cannot grant permissions you do not have');
     }
 
+    const name = dto.name || 'API Key';
     const entity = await this.apiKeyRepository.create({
       key: hashed,
-      name: dto.name || 'API Key',
+      name,
       userId: auth.user.id,
       permissions: dto.permissions,
+      ...(isSafeFotoPanelKey(name, dto.permissions) ? { isSystemManaged: true } : {}),
     });
 
     return { secret: token, apiKey: this.map(entity) };
@@ -32,6 +44,10 @@ export class ApiKeyService extends BaseService {
       throw new BadRequestException('API Key not found');
     }
 
+    if (exists.isSystemManaged) {
+      throw new ForbiddenException('System-managed API key cannot be changed');
+    }
+
     if (
       auth.apiKey &&
       dto.permissions &&
@@ -40,7 +56,13 @@ export class ApiKeyService extends BaseService {
       throw new BadRequestException('Cannot grant permissions you do not have');
     }
 
-    const key = await this.apiKeyRepository.update(auth.user.id, id, { name: dto.name, permissions: dto.permissions });
+    const name = dto.name ?? exists.name;
+    const permissions = dto.permissions ?? (exists.permissions as Permission[]);
+    const key = await this.apiKeyRepository.update(auth.user.id, id, {
+      name: dto.name,
+      permissions: dto.permissions,
+      ...(isSafeFotoPanelKey(name, permissions) ? { isSystemManaged: true } : {}),
+    });
 
     return this.map(key);
   }
@@ -49,6 +71,10 @@ export class ApiKeyService extends BaseService {
     const exists = await this.apiKeyRepository.getById(auth.user.id, id);
     if (!exists) {
       throw new BadRequestException('API Key not found');
+    }
+
+    if (exists.isSystemManaged) {
+      throw new ForbiddenException('System-managed API key cannot be deleted');
     }
 
     await this.apiKeyRepository.delete(auth.user.id, id);

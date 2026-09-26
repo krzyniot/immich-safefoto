@@ -20,9 +20,6 @@
     mdiImageAlbum,
     mdiImageMultiple,
     mdiImageMultipleOutline,
-    mdiLink,
-    mdiLock,
-    mdiLockOutline,
     mdiMagnify,
     mdiMap,
     mdiMapOutline,
@@ -50,10 +47,6 @@
 
   {#if authManager.preferences.people.enabled && authManager.preferences.people.sidebarWeb}
     <NavbarItem title={$t('people')} href={Route.people()} icon={mdiAccountOutline} activeIcon={mdiAccount} />
-  {/if}
-
-  {#if authManager.preferences.sharedLinks.enabled && authManager.preferences.sharedLinks.sidebarWeb}
-    <NavbarItem title={$t('shared_links')} href={Route.sharedLinks()} icon={mdiLink} />
   {/if}
 
   <NavbarItem
@@ -104,8 +97,6 @@
     icon={mdiArchiveArrowDownOutline}
     activeIcon={mdiArchiveArrowDown}
   />
-
-  <NavbarItem title={$t('locked_folder')} href={Route.locked()} icon={mdiLockOutline} activeIcon={mdiLock} />
 
   {#if featureFlagsManager.value.trash}
     <NavbarItem title={$t('trash')} href={Route.trash()} icon={mdiTrashCanOutline} activeIcon={mdiTrashCan} />

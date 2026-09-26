@@ -3,13 +3,9 @@
   import { focusTrap } from '$lib/actions/focus-trap';
   import { authManager } from '$lib/managers/auth-manager.svelte';
   import { serverConfigManager } from '$lib/managers/server-config-manager.svelte';
-  import HelpAndFeedbackModal from '$lib/modals/HelpAndFeedbackModal.svelte';
   import { Route } from '$lib/route';
-  import { userInteraction } from '$lib/stores/user.svelte';
-  import { getAboutInfo, type ServerAboutResponseDto } from '@immich/sdk';
-  import { Button, Icon, modalManager } from '@immich/ui';
-  import { mdiCog, mdiHomeOutline, mdiLogout, mdiWrench } from '@mdi/js';
-  import { onMount } from 'svelte';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiCog, mdiHelpCircleOutline, mdiHomeOutline, mdiLogout, mdiWrench } from '@mdi/js';
   import { t } from 'svelte-i18n';
   import { fade } from 'svelte/transition';
   import UserAvatar from '../UserAvatar.svelte';
@@ -20,12 +16,7 @@
 
   let { onClose }: Props = $props();
 
-  let info: ServerAboutResponseDto | undefined = $state();
   const panelUrl = $derived(serverConfigManager.value.safeFotoPanelUrl);
-
-  onMount(async () => {
-    info = userInteraction.aboutInfo ?? (await getAboutInfo());
-  });
 </script>
 
 <div
@@ -96,17 +87,13 @@
       color="secondary">{$t('sign_out')}</Button
     >
 
-    <button
-      type="button"
-      class="mt-4 text-center text-xs text-primary underline"
-      onclick={async () => {
-        onClose?.();
-        if (info) {
-          await modalManager.show(HelpAndFeedbackModal, { info });
-        }
-      }}
+    <a
+      class="mt-4 inline-flex items-center justify-center gap-1.5 text-center text-xs text-primary underline"
+      href={panelUrl}
+      onclick={onClose}
     >
-      {$t('support_and_feedback')}
-    </button>
+      <Icon icon={mdiHelpCircleOutline} size="16" aria-hidden />
+      Pomoc SafeFoto
+    </a>
   </div>
 </div>

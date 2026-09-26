@@ -17,7 +17,7 @@
       <img
         src={immichLogo}
         class="mx-auto mb-2 h-full max-w-(--breakpoint-md) overflow-hidden antialiased"
-        alt="Immich logo"
+        alt="Logo SafeFoto"
       />
       <div
         class="absolute inset-s-0 top-0 h-[99%] w-full bg-transparent backdrop-blur-[200px] dark:bg-immich-dark-bg/20"
@@ -30,7 +30,10 @@
       <CardHeader class="mt-6">
         <VStack>
           <Logo variant="icon" size="giant" />
-          <Heading size="large" class="font-semibold" color="primary" tag="h1">{title}</Heading>
+          <Heading size="large" color="primary" tag="h1">SafeFoto</Heading>
+          {#if title}
+            <p class="text-center text-sm text-gray-600 dark:text-gray-300">{title}</p>
+          {/if}
         </VStack>
       </CardHeader>
     {/if}

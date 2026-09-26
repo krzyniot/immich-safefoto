@@ -3,10 +3,7 @@
   import Albums from '$lib/components/album-page/AlbumsList.svelte';
   import UserPageLayout from '$lib/components/layouts/UserPageLayout.svelte';
   import EmptyPlaceholder from '$lib/components/shared-components/EmptyPlaceholder.svelte';
-  import UserAvatar from '$lib/components/shared-components/UserAvatar.svelte';
-  import { Route } from '$lib/route';
   import { getAlbumsActions } from '$lib/services/album.service';
-  import { getSharedLinksActions } from '$lib/services/shared-link.service';
   import {
     AlbumFilter,
     AlbumGroupBy,
@@ -35,40 +32,10 @@
   };
 
   const { Create: CreateAlbum } = $derived(getAlbumsActions($t));
-  const { ViewAll: ViewSharedLinks } = $derived(getSharedLinksActions($t));
 </script>
 
-<UserPageLayout title={data.meta.title} actions={[CreateAlbum, ViewSharedLinks]}>
+<UserPageLayout title={data.meta.title} actions={[CreateAlbum]}>
   <div class="flex flex-col">
-    {#if data.partners.length > 0}
-      <div class="mt-2 mb-6">
-        <div>
-          <p class="mb-4 font-medium dark:text-immich-dark-fg">{$t('partners')}</p>
-        </div>
-
-        <div class="flex flex-row flex-wrap gap-4">
-          {#each data.partners as partner (partner.id)}
-            <a
-              href={Route.viewPartner(partner)}
-              class="flex gap-4 rounded-lg px-5 py-4 transition-all hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              <UserAvatar user={partner} size="lg" />
-              <div class="text-start">
-                <p class="text-immich-fg dark:text-immich-dark-fg">
-                  {partner.name}
-                </p>
-                <p class="text-sm text-immich-fg/75 dark:text-immich-dark-fg/75">
-                  {partner.email}
-                </p>
-              </div>
-            </a>
-          {/each}
-        </div>
-      </div>
-
-      <hr class="mb-4 dark:border-immich-dark-gray" />
-    {/if}
-
     <div class="mt-2 mb-6">
       <div>
         <p class="mb-4 font-medium dark:text-immich-dark-fg">{$t('albums')}</p>

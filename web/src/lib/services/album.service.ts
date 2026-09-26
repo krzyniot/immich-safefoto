@@ -63,6 +63,7 @@ export const getAlbumActions = ($t: MessageFormatter, album: AlbumResponseDto) =
     title: $t('create_link'),
     icon: mdiLink,
     color: 'primary',
+    $if: () => false,
     onAction: () => modalManager.show(SharedLinkCreateModal, { albumId: album.id }),
   };
 

@@ -5,7 +5,6 @@
   import OnboardingCard from './OnboardingCard.svelte';
   import OnboardingHello from './OnboardingHello.svelte';
   import OnboardingLocale from './OnboardingLanguage.svelte';
-  import OnboardingMobileApp from './OnboardingMobileApp.svelte';
   import OnboardingServerPrivacy from './OnboardingServerPrivacy.svelte';
   import OnboardingStorageTemplate from './OnboardingStorageTemplate.svelte';
   import OnboardingTheme from './OnboardingTheme.svelte';
@@ -17,7 +16,6 @@
   import { OnboardingRole } from '$lib/types';
   import { setUserOnboarding, updateAdminOnboarding } from '@immich/sdk';
   import {
-    mdiCellphoneArrowDownVariant,
     mdiCloudCheckOutline,
     mdiHarddisk,
     mdiIncognito,
@@ -35,7 +33,6 @@
       | typeof OnboardingStorageTemplate
       | typeof OnboardingServerPrivacy
       | typeof OnboardingUserPrivacy
-      | typeof OnboardingMobileApp
       | typeof OnboardingLocale;
     role: OnboardingRole;
     title?: string;
@@ -85,13 +82,6 @@
       role: OnboardingRole.SERVER,
       title: $t('admin.backup_onboarding_title'),
       icon: mdiCloudCheckOutline,
-    },
-    {
-      name: 'mobile_app',
-      component: OnboardingMobileApp,
-      role: OnboardingRole.USER,
-      title: $t('mobile_app'),
-      icon: mdiCellphoneArrowDownVariant,
     },
   ]);
 

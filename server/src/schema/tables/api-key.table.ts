@@ -36,6 +36,9 @@ export class ApiKeyTable {
   @Column({ array: true, type: 'character varying' })
   permissions!: Permission[];
 
+  @Column({ default: false })
+  isSystemManaged!: Generated<boolean>;
+
   @UpdateIdColumn({ index: true })
   updateId!: Generated<string>;
 }

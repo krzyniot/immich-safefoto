@@ -1,6 +1,6 @@
 {
   "background_color": "#ffffff",
-  "description": "Self-hosted photo and video backup solution directly from your mobile phone.",
+  "description": "Bezpieczne zdjęcia i filmy Twojej rodziny.",
   "dir": "auto",
   "display": "standalone",
   "icons": [
@@ -23,20 +23,20 @@
       "type": "image/png"
     }
   ],
-  "lang": "en",
-  "name": "Immich",
-  "short_name": "Immich",
+  "lang": "pl",
+  "name": "SafeFoto",
+  "short_name": "SafeFoto",
   "shortcuts": [
     {
-      "name": "Photos",
+      "name": "Zdjęcia",
       "url": "/photos"
     },
     {
-      "name": "Albums",
+      "name": "Albumy",
       "url": "/albums"
     },
     {
-      "name": "Map",
+      "name": "Mapa",
       "url": "/map"
     }
   ],

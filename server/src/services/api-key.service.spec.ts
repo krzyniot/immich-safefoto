@@ -56,6 +56,21 @@ describe(ApiKeyService.name, () => {
       expect(mocks.crypto.hashSha256).toHaveBeenCalled();
     });
 
+    it('should mark the SafeFoto panel key as system managed', async () => {
+      const auth = AuthFactory.create();
+      const permissions = [Permission.AdminUserRead, Permission.AdminUserCreate, Permission.AdminUserUpdate];
+      const apiKey = ApiKeyFactory.create({ userId: auth.user.id, name: 'SafeFoto panel', permissions });
+
+      mocks.crypto.randomBytesAsText.mockReturnValue('super-secret');
+      mocks.apiKey.create.mockResolvedValue(apiKey);
+
+      await sut.create(auth, { name: apiKey.name, permissions });
+
+      expect(mocks.apiKey.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: apiKey.name, permissions, isSystemManaged: true }),
+      );
+    });
+
     it('should throw an error if the api key does not have sufficient permissions', async () => {
       const auth = AuthFactory.from()
         .apiKey({ permissions: [Permission.AssetRead] })
@@ -79,6 +94,16 @@ describe(ApiKeyService.name, () => {
       );
 
       expect(mocks.apiKey.update).not.toHaveBeenCalledWith(id);
+    });
+
+    it('should not update a system-managed key', async () => {
+      const auth = AuthFactory.create();
+      const apiKey = ApiKeyFactory.create({ userId: auth.user.id, isSystemManaged: true });
+
+      mocks.apiKey.getById.mockResolvedValue(apiKey);
+
+      await expect(sut.update(auth, apiKey.id, { name: 'New name' })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mocks.apiKey.update).not.toHaveBeenCalled();
     });
 
     it('should update a key', async () => {
@@ -198,6 +223,16 @@ describe(ApiKeyService.name, () => {
       await expect(sut.delete(auth, id)).rejects.toBeInstanceOf(BadRequestException);
 
       expect(mocks.apiKey.delete).not.toHaveBeenCalledWith(id);
+    });
+
+    it('should not delete a system-managed key', async () => {
+      const auth = AuthFactory.create();
+      const apiKey = ApiKeyFactory.create({ userId: auth.user.id, isSystemManaged: true });
+
+      mocks.apiKey.getById.mockResolvedValue(apiKey);
+
+      await expect(sut.delete(auth, apiKey.id)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mocks.apiKey.delete).not.toHaveBeenCalled();
     });
 
     it('should delete a key', async () => {

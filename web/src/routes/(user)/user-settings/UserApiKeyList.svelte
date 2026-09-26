@@ -4,7 +4,7 @@
   import { dateFormats } from '$lib/constants';
   import { getApiKeyActions, getApiKeysActions } from '$lib/services/api-key.service';
   import { locale } from '$lib/stores/preferences.store';
-  import { getApiKeys, type ApiKeyResponseDto } from '@immich/sdk';
+  import { getApiKeys, Permission, type ApiKeyResponseDto } from '@immich/sdk';
   import { Button, Table, TableBody, TableCell, TableHeader, TableHeading, TableRow, Text } from '@immich/ui';
   import { t } from 'svelte-i18n';
   import { fade } from 'svelte/transition';
@@ -28,6 +28,16 @@
   };
 
   const { Create } = $derived(getApiKeysActions($t));
+  const isSafeFotoPanelKey = (key: ApiKeyResponseDto) => {
+    const normalizedName = key.name.trim().toLocaleLowerCase();
+    const requiredPermissions = [Permission.AdminUserRead, Permission.AdminUserCreate, Permission.AdminUserUpdate];
+    return (
+      normalizedName.startsWith('safefoto') &&
+      normalizedName.includes('panel') &&
+      requiredPermissions.every((permission) => key.permissions.includes(permission))
+    );
+  };
+  const visibleKeys = $derived(keys.filter((key) => !isSafeFotoPanelKey(key)));
 </script>
 
 <OnEvents {onApiKeyCreate} {onApiKeyUpdate} {onApiKeyDelete} />
@@ -40,7 +50,7 @@
       </Button>
     </div>
 
-    {#if keys.length > 0}
+    {#if visibleKeys.length > 0}
       <Table class="mt-4" striped spacing="small" size="small">
         <TableHeader>
           <TableHeading>{$t('name')}</TableHeading>
@@ -50,7 +60,7 @@
         </TableHeader>
 
         <TableBody>
-          {#each keys as key (key.id)}
+          {#each visibleKeys as key (key.id)}
             {@const { Update, Delete } = getApiKeyActions($t, key)}
             <TableRow>
               <TableCell>{key.name}</TableCell>
