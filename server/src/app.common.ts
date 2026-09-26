@@ -65,10 +65,7 @@ export async function configureExpress(
   app.setGlobalPrefix('api', { exclude: excludePaths });
   app.useWebSocketAdapter(new WebSocketAdapter(app));
 
-  // The test lab can serve the complete app while an upstream Zod/OpenAPI date schema is being fixed.
-  if (process.env.SAFEFOTO_SKIP_SWAGGER !== '1') {
-    useSwagger(app, { write: configRepository.isDev() && permitSwaggerWrite });
-  }
+  useSwagger(app, { write: configRepository.isDev() && permitSwaggerWrite });
 
   if (existsSync(resourcePaths.web.root)) {
     // copied from https://github.com/sveltejs/kit/blob/679b5989fe62e3964b9a73b712d7b41831aa1f07/packages/adapter-node/src/handler.js#L46

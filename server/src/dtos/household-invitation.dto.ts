@@ -1,4 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
+import { isoDatetimeToDate } from 'src/validation';
 import z from 'zod';
 
 export const HouseholdInvitationCreateSchema = z.object({
@@ -10,7 +11,7 @@ export const HouseholdInvitationResponseSchema = z.object({
   id: z.uuid(),
   householdId: z.uuid(),
   status: z.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED']),
-  createdAt: z.coerce.date(),
+  createdAt: isoDatetimeToDate,
   invitee: z.object({ id: z.uuid(), name: z.string(), email: z.email() }),
   admin: z.object({ id: z.uuid(), name: z.string(), email: z.email() }),
 }).meta({ id: 'HouseholdInvitationResponseDto' });
