@@ -7,6 +7,7 @@ export const envData: EnvData = {
   port: 2283,
   environment: ImmichEnvironment.Production,
   logFormat: LogFormat.Console,
+  safeFotoPanelUrl: 'https://panel.safefoto.pl',
 
   buildMetadata: {},
   bull: {

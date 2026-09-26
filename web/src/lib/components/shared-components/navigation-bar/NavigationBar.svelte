@@ -22,6 +22,7 @@
   import ThemeButton from '../ThemeButton.svelte';
   import UserAvatar from '../UserAvatar.svelte';
   import AccountInfoPanel from './AccountInfoPanel.svelte';
+  import SafeFotoIdentity from './SafeFotoIdentity.svelte';
 
   type Props = {
     onUploadClick?: () => void;
@@ -86,6 +87,8 @@
           <SearchBar grayTheme={true} />
         {/if}
       </div>
+
+      <SafeFotoIdentity />
 
       <section class="flex w-full place-items-center justify-end gap-1 sm:w-auto md:gap-2">
         {#if featureFlagsManager.value.search}

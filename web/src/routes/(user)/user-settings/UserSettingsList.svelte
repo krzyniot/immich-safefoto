@@ -1,37 +1,25 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import ChangePinCodeSettings from './PinCodeSettings.svelte';
-  import DownloadSettings from './DownloadSettings.svelte';
-  import FeatureSettings from './FeatureSettings.svelte';
-  import NotificationsSettings from './NotificationsSettings.svelte';
-  import UserUsageStatistic from './UserUsageStatistic.svelte';
-  import { OpenQueryParam, QueryParameter } from '$lib/constants';
-  import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
-  import { oauth } from '$lib/utils';
-  import { type ApiKeyResponseDto, type SessionResponseDto } from '@immich/sdk';
+  import SettingAccordion from '$lib/components/shared-components/settings/SettingAccordion.svelte';
+  import type { ApiKeyResponseDto, SessionResponseDto } from '@immich/sdk';
   import {
-    mdiAccountGroupOutline,
     mdiAccountOutline,
-    mdiApi,
     mdiBellOutline,
     mdiCogOutline,
     mdiDevices,
-    mdiDownload,
-    mdiFeatureSearchOutline,
     mdiFormTextboxPassword,
     mdiLockSmart,
     mdiServerOutline,
-    mdiTwoFactorAuthentication,
+    mdiTuneVariant,
   } from '@mdi/js';
   import { t } from 'svelte-i18n';
-  import SettingAccordion from '$lib/components/shared-components/settings/SettingAccordion.svelte';
   import AppSettings from './AppSettings.svelte';
   import ChangePasswordSettings from './ChangePasswordSettings.svelte';
   import DeviceList from './DeviceList.svelte';
-  import OauthSettings from './OauthSettings.svelte';
-  import PartnerSettings from './PartnerSettings.svelte';
-  import UserApiKeyList from './UserApiKeyList.svelte';
-  import UserProfileSettings from './UserProfileSettings.svelte';
+  import NotificationsSettings from './NotificationsSettings.svelte';
+  import ChangePinCodeSettings from './PinCodeSettings.svelte';
+  import SafeFotoAdvancedSettings from './SafeFotoAdvancedSettings.svelte';
+  import SafeFotoProfileSettings from './SafeFotoProfileSettings.svelte';
+  import UserUsageStatistic from './UserUsageStatistic.svelte';
 
   interface Props {
     keys?: ApiKeyResponseDto[];
@@ -39,10 +27,6 @@
   }
 
   let { keys = $bindable([]), sessions = $bindable([]) }: Props = $props();
-
-  let oauthOpen =
-    oauth.isCallback(globalThis.location) ||
-    $page.url.searchParams.get(QueryParameter.OPEN_SETTING) === OpenQueryParam.OAUTH;
 </script>
 
 <SettingAccordion
@@ -54,8 +38,13 @@
   <AppSettings />
 </SettingAccordion>
 
-<SettingAccordion icon={mdiAccountOutline} key="account" title={$t('account')} subtitle={$t('manage_your_account')}>
-  <UserProfileSettings />
+<SettingAccordion
+  icon={mdiAccountOutline}
+  key="account"
+  title={$t('account')}
+  subtitle="Profil wspólny z panelem SafeFoto"
+>
+  <SafeFotoProfileSettings />
 </SettingAccordion>
 
 <SettingAccordion
@@ -65,10 +54,6 @@
   subtitle={$t('user_usage_stats_description')}
 >
   <UserUsageStatistic />
-</SettingAccordion>
-
-<SettingAccordion icon={mdiApi} key="api-keys" title={$t('api_keys')} subtitle={$t('manage_your_api_keys')}>
-  <UserApiKeyList bind:keys />
 </SettingAccordion>
 
 <SettingAccordion
@@ -81,43 +66,13 @@
 </SettingAccordion>
 
 <SettingAccordion
-  icon={mdiDownload}
-  key="download-settings"
-  title={$t('download_settings')}
-  subtitle={$t('download_settings_description')}
->
-  <DownloadSettings />
-</SettingAccordion>
-
-<SettingAccordion
-  icon={mdiFeatureSearchOutline}
-  key="feature"
-  title={$t('features')}
-  subtitle={$t('features_setting_description')}
->
-  <FeatureSettings />
-</SettingAccordion>
-
-<SettingAccordion
   icon={mdiBellOutline}
-  key={OpenQueryParam.NOTIFICATIONS}
+  key="notifications"
   title={$t('notifications')}
   subtitle={$t('notifications_setting_description')}
 >
   <NotificationsSettings />
 </SettingAccordion>
-
-{#if featureFlagsManager.value.oauth}
-  <SettingAccordion
-    icon={mdiTwoFactorAuthentication}
-    key={OpenQueryParam.OAUTH}
-    title={$t('oauth')}
-    subtitle={$t('manage_your_oauth_connection')}
-    isOpen={oauthOpen || undefined}
-  >
-    <OauthSettings />
-  </SettingAccordion>
-{/if}
 
 <SettingAccordion
   icon={mdiFormTextboxPassword}
@@ -129,15 +84,6 @@
 </SettingAccordion>
 
 <SettingAccordion
-  icon={mdiAccountGroupOutline}
-  key="partner-sharing"
-  title={$t('partner_sharing')}
-  subtitle={$t('manage_sharing_with_partners')}
->
-  <PartnerSettings />
-</SettingAccordion>
-
-<SettingAccordion
   icon={mdiLockSmart}
   key="user-pin-code-settings"
   title={$t('user_pin_code_settings')}
@@ -145,4 +91,13 @@
   autoScrollTo={true}
 >
   <ChangePinCodeSettings />
+</SettingAccordion>
+
+<SettingAccordion
+  icon={mdiTuneVariant}
+  key="safefoto-advanced"
+  title="Zaawansowane"
+  subtitle="Integracje i rzadziej używane ustawienia galerii"
+>
+  <SafeFotoAdvancedSettings bind:keys />
 </SettingAccordion>

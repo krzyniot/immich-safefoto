@@ -1,8 +1,10 @@
 name: safefoto-immich-real-lab
 services:
   immich-server:
-    image: safefoto-immich-family:stage13-swagger-fix
+    image: safefoto-immich-family:stage13-safefoto-ui
     env_file: [.env]
+    environment:
+      SAFEFOTO_PANEL_URL: "http://192.168.0.188:13014"
     ports:
       - "192.168.0.188:13013:2283"
     volumes:

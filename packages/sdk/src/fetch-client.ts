@@ -2013,6 +2013,8 @@ export type ServerConfigDto = {
     oauthButtonText: string;
     /** Whether public user registration is enabled */
     publicUsers: boolean;
+    /** SafeFoto customer panel URL */
+    safeFotoPanelUrl: string;
     /** Number of days before trashed assets are permanently deleted */
     trashDays: number;
     /** Delay in days before deleted users are permanently removed */

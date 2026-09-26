@@ -32,6 +32,7 @@ export interface EnvData {
   configFile?: string;
   logLevel?: LogLevel;
   logFormat?: LogFormat;
+  safeFotoPanelUrl: string;
 
   buildMetadata: {
     build?: string;
@@ -263,6 +264,7 @@ const getEnv = (): EnvData => {
     configFile: dto.IMMICH_CONFIG_FILE,
     logLevel: dto.IMMICH_LOG_LEVEL,
     logFormat: dto.IMMICH_LOG_FORMAT || LogFormat.Console,
+    safeFotoPanelUrl: dto.SAFEFOTO_PANEL_URL || 'https://panel.safefoto.pl',
 
     buildMetadata: {
       build: dto.IMMICH_BUILD,

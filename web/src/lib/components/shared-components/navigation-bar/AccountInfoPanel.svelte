@@ -2,13 +2,13 @@
   import { page } from '$app/state';
   import { focusTrap } from '$lib/actions/focus-trap';
   import { authManager } from '$lib/managers/auth-manager.svelte';
-  import AvatarEditModal from '$lib/modals/AvatarEditModal.svelte';
+  import { serverConfigManager } from '$lib/managers/server-config-manager.svelte';
   import HelpAndFeedbackModal from '$lib/modals/HelpAndFeedbackModal.svelte';
   import { Route } from '$lib/route';
   import { userInteraction } from '$lib/stores/user.svelte';
   import { getAboutInfo, type ServerAboutResponseDto } from '@immich/sdk';
-  import { Button, Icon, IconButton, modalManager } from '@immich/ui';
-  import { mdiCog, mdiLogout, mdiPencil, mdiWrench } from '@mdi/js';
+  import { Button, Icon, modalManager } from '@immich/ui';
+  import { mdiCog, mdiHomeOutline, mdiLogout, mdiWrench } from '@mdi/js';
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { fade } from 'svelte/transition';
@@ -21,6 +21,7 @@
   let { onClose }: Props = $props();
 
   let info: ServerAboutResponseDto | undefined = $state();
+  const panelUrl = $derived(serverConfigManager.value.safeFotoPanelUrl);
 
   onMount(async () => {
     info = userInteraction.aboutInfo ?? (await getAboutInfo());
@@ -37,22 +38,7 @@
   <div
     class="mx-4 mt-4 flex flex-col items-center justify-center gap-4 rounded-t-3xl bg-white p-4 dark:bg-immich-dark-primary/10"
   >
-    <div class="relative">
-      <UserAvatar user={authManager.user} size="xl" />
-      <div class="absolute inset-e-0 bottom-0 size-6 rounded-full">
-        <IconButton
-          color="primary"
-          icon={mdiPencil}
-          aria-label={$t('edit_avatar')}
-          size="tiny"
-          shape="round"
-          onclick={async () => {
-            onClose?.();
-            await modalManager.show(AvatarEditModal);
-          }}
-        />
-      </div>
-    </div>
+    <UserAvatar user={authManager.user} size="xl" />
     <div>
       <p class="text-center text-lg font-medium text-primary">
         {authManager.user.name}
@@ -61,6 +47,12 @@
     </div>
 
     <div class="flex flex-col gap-1">
+      <Button href={panelUrl} onclick={onClose} size="small" color="primary" variant="filled" shape="round">
+        <div class="flex place-content-center place-items-center gap-2 px-2 text-center">
+          <Icon icon={mdiHomeOutline} size="18" aria-hidden />
+          Panel SafeFoto
+        </div>
+      </Button>
       <Button
         href={Route.userSettings()}
         onclick={onClose}
