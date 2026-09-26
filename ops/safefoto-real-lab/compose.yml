@@ -1,0 +1,60 @@
+name: safefoto-immich-real-lab
+services:
+  immich-server:
+    image: safefoto-immich-family:stage13-a393d3e
+    env_file: [.env]
+    environment:
+      SAFEFOTO_SKIP_SWAGGER: "1"
+    ports:
+      - "192.168.0.188:13013:2283"
+    volumes:
+      - ./data/upload:/data
+    depends_on:
+      - database
+      - redis
+    restart: "no"
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v3.0.1
+    env_file: [.env]
+    volumes:
+      - ml_cache:/cache
+    restart: "no"
+  redis:
+    image: docker.io/valkey/valkey:9@sha256:4963247afc4cd33c7d3b2d2816b9f7f8eeebab148d29056c2ca4d7cbc966f2d9
+    restart: "no"
+
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: "no"
+
+  backend:
+    image: safefoto-test-backend:local
+    env_file: [panel.env]
+    volumes:
+      - backend_data:/data
+    depends_on: [immich-server]
+    restart: "no"
+
+  panel:
+    image: safefoto-test-panel:stage13-preprod-billing-guard
+    env_file: [panel.env]
+    ports:
+      - "192.168.0.188:13014:3000"
+    volumes:
+      - panel_data:/data
+    depends_on: [immich-server]
+    restart: "no"
+
+volumes:
+  ml_cache:
+  backend_data:
+  panel_data:
