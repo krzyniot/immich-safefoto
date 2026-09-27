@@ -17,7 +17,7 @@
     </div>
 
     <p class="text-sm text-gray-600 dark:text-gray-300">
-      Imię i zdjęcie profilowe są wspólne dla SafeFoto i galerii zdjęć.
+      Imię, adres e-mail i zdjęcie profilowe są wspólne dla SafeFoto i galerii zdjęć.
     </p>
 
     <div class="flex justify-end">

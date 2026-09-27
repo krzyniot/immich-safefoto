@@ -7,7 +7,6 @@
     mdiCogOutline,
     mdiDevices,
     mdiFormTextboxPassword,
-    mdiLockSmart,
     mdiServerOutline,
     mdiTuneVariant,
   } from '@mdi/js';
@@ -16,7 +15,6 @@
   import ChangePasswordSettings from './ChangePasswordSettings.svelte';
   import DeviceList from './DeviceList.svelte';
   import NotificationsSettings from './NotificationsSettings.svelte';
-  import ChangePinCodeSettings from './PinCodeSettings.svelte';
   import SafeFotoAdvancedSettings from './SafeFotoAdvancedSettings.svelte';
   import SafeFotoProfileSettings from './SafeFotoProfileSettings.svelte';
   import UserUsageStatistic from './UserUsageStatistic.svelte';
@@ -81,16 +79,6 @@
   subtitle={$t('change_your_password')}
 >
   <ChangePasswordSettings />
-</SettingAccordion>
-
-<SettingAccordion
-  icon={mdiLockSmart}
-  key="user-pin-code-settings"
-  title={$t('user_pin_code_settings')}
-  subtitle={$t('user_pin_code_settings_description')}
-  autoScrollTo={true}
->
-  <ChangePinCodeSettings />
 </SettingAccordion>
 
 <SettingAccordion

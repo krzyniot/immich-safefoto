@@ -52,11 +52,11 @@
 <nav id="dashboard-navbar" class="h-(--navbar-height) w-dvw text-sm max-md:h-(--navbar-height-md)">
   <SkipLink text={$t('skip_to_content')} />
   <div
-    class="grid h-full grid-cols-[--spacing(32)_auto] items-center py-2 sidebar:grid-cols-[--spacing(64)_auto] {noBorder
+    class="grid h-full grid-cols-[--spacing(48)_auto] items-center py-2 sidebar:grid-cols-[--spacing(64)_auto] {noBorder
       ? ''
       : 'border-b'}"
   >
-    <div class="mx-4 flex flex-row items-center gap-1">
+    <div class="mx-2 flex min-w-0 flex-row items-center gap-1 sm:mx-4">
       <IconButton
         id={menuButtonId}
         shape="round"
@@ -76,9 +76,10 @@
         }}
         class="sidebar:hidden"
       />
-      <a data-sveltekit-preload-data="hover" href={Route.photos()} aria-label="SafeFoto">
-        <img src="/safefoto/logo.png" alt="" class="size-10 object-contain max-md:size-12" />
+      <a class="shrink-0" data-sveltekit-preload-data="hover" href={Route.photos()} aria-label="SafeFoto">
+        <img src="/safefoto/logo.png" alt="" class="size-10 object-contain" />
       </a>
+      <SafeFotoIdentity />
     </div>
     <div class="flex justify-between gap-4 pe-6 lg:gap-8">
       <div class="hidden w-full max-w-5xl flex-1 sm:block tall:ps-0">
@@ -86,8 +87,6 @@
           <SearchBar grayTheme={true} />
         {/if}
       </div>
-
-      <SafeFotoIdentity />
 
       <section class="flex w-full place-items-center justify-end gap-1 sm:w-auto md:gap-2">
         {#if featureFlagsManager.value.search}
