@@ -15,13 +15,7 @@
   import { Route } from '$lib/route';
   import { OnboardingRole } from '$lib/types';
   import { setUserOnboarding, updateAdminOnboarding } from '@immich/sdk';
-  import {
-    mdiCloudCheckOutline,
-    mdiHarddisk,
-    mdiIncognito,
-    mdiThemeLightDark,
-    mdiTranslate,
-  } from '@mdi/js';
+  import { mdiCloudCheckOutline, mdiHarddisk, mdiIncognito, mdiThemeLightDark, mdiTranslate } from '@mdi/js';
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
 

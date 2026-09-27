@@ -279,7 +279,5 @@
   <UploadPanel />
   <ScreencastOverlay />
 
-  <CommandPaletteProvider
-    providers={[getPagesProvider($t), getSettingsProvider($t)]}
-  />
+  <CommandPaletteProvider providers={[getPagesProvider($t), getSettingsProvider($t)]} />
 </TooltipProvider>
