@@ -126,62 +126,73 @@
   };
 </script>
 
-<AuthPageLayout title={data.meta.title}>
-  <Stack gap={4}>
-    {#if serverConfig.loginPageMessage}
-      <Alert color="primary" class="mb-6">
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        {@html serverConfig.loginPageMessage}
-      </Alert>
-    {/if}
+<div class="relative isolate">
+  <div class="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+    <img src="/safefoto/family.webp" alt="" class="size-full object-cover object-right" />
+    <div class="absolute inset-0 bg-white/40 dark:bg-black/60"></div>
+  </div>
+  <AuthPageLayout withHeader={false} withBackdrop={false}>
+    <Stack gap={4}>
+      <div class="mb-4 flex flex-col items-center gap-2 text-center">
+        <img src="/safefoto/logo.png" alt="Logo SafeFoto" width="112" height="112" class="size-28 object-contain" />
+        <h1 class="text-3xl font-normal text-primary">SafeFoto</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-300">{data.meta.title}</p>
+      </div>
+      {#if serverConfig.loginPageMessage}
+        <Alert color="primary" class="mb-6">
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+          {@html serverConfig.loginPageMessage}
+        </Alert>
+      {/if}
 
-    {#if !oauthLoading && featureFlagsManager.value.passwordLogin}
-      <form {onsubmit} class="flex flex-col gap-4">
-        {#if errorMessage}
-          <Alert color="danger" title={errorMessage} closable />
+      {#if !oauthLoading && featureFlagsManager.value.passwordLogin}
+        <form {onsubmit} class="flex flex-col gap-4">
+          {#if errorMessage}
+            <Alert color="danger" title={errorMessage} closable />
+          {/if}
+
+          <Field label={$t('email')} required="indicator">
+            <Input id="email" name="email" type="email" autocomplete="email" bind:value={email} />
+          </Field>
+
+          <Field label={$t('password')} required="indicator">
+            <PasswordInput id="password" bind:value={password} autocomplete="current-password" />
+          </Field>
+
+          <Button type="submit" size="large" shape="round" fullWidth {loading} class="mt-6">{$t('to_login')}</Button>
+        </form>
+      {/if}
+
+      {#if featureFlagsManager.value.oauth}
+        {#if featureFlagsManager.value.passwordLogin}
+          <div class="my-4 inline-flex w-full items-center justify-center">
+            <hr class="my-4 h-px w-3/4 border-0 bg-gray-200 dark:bg-gray-600" />
+            <span
+              class="absolute inset-s-1/2 -translate-x-1/2 bg-gray-50 px-3 font-medium text-gray-900 uppercase dark:bg-neutral-900 dark:text-white"
+            >
+              {$t('or')}
+            </span>
+          </div>
         {/if}
-
-        <Field label={$t('email')} required="indicator">
-          <Input id="email" name="email" type="email" autocomplete="email" bind:value={email} />
-        </Field>
-
-        <Field label={$t('password')} required="indicator">
-          <PasswordInput id="password" bind:value={password} autocomplete="current-password" />
-        </Field>
-
-        <Button type="submit" size="large" shape="round" fullWidth {loading} class="mt-6">{$t('to_login')}</Button>
-      </form>
-    {/if}
-
-    {#if featureFlagsManager.value.oauth}
-      {#if featureFlagsManager.value.passwordLogin}
-        <div class="my-4 inline-flex w-full items-center justify-center">
-          <hr class="my-4 h-px w-3/4 border-0 bg-gray-200 dark:bg-gray-600" />
-          <span
-            class="absolute inset-s-1/2 -translate-x-1/2 bg-gray-50 px-3 font-medium text-gray-900 uppercase dark:bg-neutral-900 dark:text-white"
-          >
-            {$t('or')}
-          </span>
-        </div>
+        {#if oauthError}
+          <Alert color="danger" title={oauthError} closable />
+        {/if}
+        <Button
+          shape="round"
+          loading={loading || oauthLoading}
+          disabled={loading || oauthLoading}
+          size="large"
+          fullWidth
+          color={featureFlagsManager.value.passwordLogin ? 'secondary' : 'primary'}
+          onclick={handleOAuthLogin}
+        >
+          {serverConfig.oauthButtonText}
+        </Button>
       {/if}
-      {#if oauthError}
-        <Alert color="danger" title={oauthError} closable />
-      {/if}
-      <Button
-        shape="round"
-        loading={loading || oauthLoading}
-        disabled={loading || oauthLoading}
-        size="large"
-        fullWidth
-        color={featureFlagsManager.value.passwordLogin ? 'secondary' : 'primary'}
-        onclick={handleOAuthLogin}
-      >
-        {serverConfig.oauthButtonText}
-      </Button>
-    {/if}
 
-    {#if !featureFlagsManager.value.passwordLogin && !featureFlagsManager.value.oauth}
-      <Alert color="warning" title={$t('login_has_been_disabled')} />
-    {/if}
-  </Stack>
-</AuthPageLayout>
+      {#if !featureFlagsManager.value.passwordLogin && !featureFlagsManager.value.oauth}
+        <Alert color="warning" title={$t('login_has_been_disabled')} />
+      {/if}
+    </Stack>
+  </AuthPageLayout>
+</div>
