@@ -34,6 +34,7 @@ export class UserFactory {
       name: 'Test User',
       quotaSizeInBytes: null,
       quotaUsageInBytes: 0,
+      billingUploadRestricted: false,
       status: UserStatus.Active,
       profileChangedAt: newDate(),
       updateId: newUuidV7(),

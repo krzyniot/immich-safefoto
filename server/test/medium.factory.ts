@@ -712,6 +712,7 @@ const userInsert = (user: Partial<Insertable<UserTable>> = {}) => {
     avatarColor: null,
     quotaSizeInBytes: null,
     quotaUsageInBytes: 0,
+    billingUploadRestricted: false,
   };
 
   return { ...defaults, ...user, id };

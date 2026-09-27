@@ -20,6 +20,7 @@ export const userStub = {
     metadata: [],
     quotaSizeInBytes: null,
     quotaUsageInBytes: 0,
+    billingUploadRestricted: false,
   },
   user1: <UserAdmin>{
     ...authStub.user1.user,
@@ -37,5 +38,6 @@ export const userStub = {
     metadata: [],
     quotaSizeInBytes: null,
     quotaUsageInBytes: 0,
+    billingUploadRestricted: false,
   },
 };

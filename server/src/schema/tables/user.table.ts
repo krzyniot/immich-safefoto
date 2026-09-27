@@ -86,6 +86,9 @@ export class UserTable {
   @Column({ type: 'bigint', default: 0 })
   quotaUsageInBytes!: Generated<ColumnType<number>>;
 
+  @Column({ type: 'boolean', default: false })
+  billingUploadRestricted!: Generated<boolean>;
+
   @Column({ type: 'character varying', default: UserStatus.Active })
   status!: Generated<UserStatus>;
 

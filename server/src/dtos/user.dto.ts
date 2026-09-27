@@ -101,6 +101,7 @@ const UserAdminUpdateSchema = z
     storageLabel: z.string().pipe(sanitizeFilename).nullish().describe('Storage label'),
     shouldChangePassword: z.boolean().optional().describe('Require password change on next login'),
     quotaSizeInBytes: z.int().min(0).nullish().describe('Storage quota in bytes'),
+    billingUploadRestricted: z.boolean().optional().describe('Block new uploads due to personal billing arrears'),
     isAdmin: z.boolean().optional().describe('Grant admin privileges'),
   })
   .meta({ id: 'UserAdminUpdateDto' });
@@ -152,6 +153,7 @@ const UserAdminResponseSchema = UserResponseSchema.extend({
   oauthId: z.string().describe('OAuth ID'),
   quotaSizeInBytes: z.int().min(0).nullable().describe('Storage quota in bytes'),
   quotaUsageInBytes: z.int().min(0).nullable().describe('Storage usage in bytes'),
+  billingUploadRestricted: z.boolean().describe('New uploads blocked due to personal billing arrears'),
   status: UserStatusSchema,
   license: UserLicenseSchema.nullable(),
 }).meta({ id: 'UserAdminResponseDto' });
@@ -175,6 +177,7 @@ export function mapUserAdmin(entity: UserAdmin): UserAdminResponseDto {
     oauthId: entity.oauthId,
     quotaSizeInBytes: entity.quotaSizeInBytes,
     quotaUsageInBytes: entity.quotaUsageInBytes,
+    billingUploadRestricted: entity.billingUploadRestricted ?? false,
     status: entity.status,
     license: license ? { ...license, activatedAt: new Date(license.activatedAt) } : null,
   };

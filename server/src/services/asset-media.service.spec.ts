@@ -292,6 +292,28 @@ describe(AssetMediaService.name, () => {
   });
 
   describe('uploadAsset', () => {
+    it('should block only new uploads when personal billing is overdue', async () => {
+      const file = {
+        uuid: 'random-uuid',
+        originalPath: 'fake_path/asset_1.jpeg',
+        mimeType: 'image/jpeg',
+        checksum: Buffer.from('file hash', 'utf8'),
+        originalName: 'asset_1.jpeg',
+        size: 42,
+      };
+
+      await expect(
+        sut.uploadAsset(
+          { ...authStub.admin, user: { ...authStub.admin.user, billingUploadRestricted: true } },
+          createDto,
+          file,
+        ),
+      ).rejects.toThrow('Przesyłanie nowych zdjęć jest wstrzymane');
+
+      expect(mocks.asset.create).not.toHaveBeenCalled();
+      expect(mocks.user.updateUsage).not.toHaveBeenCalled();
+    });
+
     it('should throw an error if the quota is exceeded', async () => {
       const file = {
         uuid: 'random-uuid',

@@ -26,6 +26,7 @@ export type AuthUser = {
   email: string;
   quotaUsageInBytes: number;
   quotaSizeInBytes: number | null;
+  billingUploadRestricted?: boolean;
 };
 
 export type AlbumUser = {
@@ -142,6 +143,7 @@ export type UserAdmin = User & {
   oauthId: string;
   quotaSizeInBytes: number | null;
   quotaUsageInBytes: number;
+  billingUploadRestricted: boolean;
   status: UserStatus;
   metadata: UserMetadataItem[];
 };
@@ -339,7 +341,15 @@ export const columns = {
     'asset_file.isProgressive',
     'asset_file.isTransparent',
   ],
-  authUser: ['user.id', 'user.name', 'user.email', 'user.isAdmin', 'user.quotaUsageInBytes', 'user.quotaSizeInBytes'],
+  authUser: [
+    'user.id',
+    'user.name',
+    'user.email',
+    'user.isAdmin',
+    'user.quotaUsageInBytes',
+    'user.quotaSizeInBytes',
+    'user.billingUploadRestricted',
+  ],
   authApiKey: ['api_key.id', 'api_key.permissions'],
   authSession: ['session.id', 'session.updatedAt', 'session.pinExpiresAt', 'session.appVersion'],
   user: userColumns,
@@ -357,6 +367,7 @@ export const columns = {
     'storageLabel',
     'quotaSizeInBytes',
     'quotaUsageInBytes',
+    'billingUploadRestricted',
   ],
   tag: ['tag.id', 'tag.value', 'tag.createdAt', 'tag.updatedAt', 'tag.color', 'tag.parentId'],
   apiKey: ['id', 'name', 'userId', 'createdAt', 'updatedAt', 'permissions', 'isSystemManaged'],
