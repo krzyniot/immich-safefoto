@@ -36,6 +36,11 @@
   const onFirstLogin = () => goto(Route.changePassword());
   const onOnboarding = () => goto(Route.onboarding());
 
+  onMount(() => {
+    globalThis.dispatchEvent(new CustomEvent('safefoto-login-branding', { detail: true }));
+    return () => globalThis.dispatchEvent(new CustomEvent('safefoto-login-branding', { detail: false }));
+  });
+
   onMount(async () => {
     if (!featureFlagsManager.value.oauth) {
       oauthLoading = false;

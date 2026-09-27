@@ -29,6 +29,33 @@
       }
     </script>
 
+    <script>
+      (() => {
+        const icons = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')].map((link) => ({
+          link,
+          href: link.getAttribute('href'),
+          type: link.getAttribute('type'),
+          sizes: link.getAttribute('sizes'),
+        }));
+        const setLoginBranding = (enabled) => {
+          document.documentElement.toggleAttribute('data-safefoto-login', enabled);
+          for (const { link, href, type, sizes } of icons) {
+            for (const [attribute, value] of Object.entries(
+              enabled ? { href: '/safefoto/logo.png', type: 'image/png', sizes: '1024x1024' } : { href, type, sizes },
+            )) {
+              if (value === null) {
+                link.removeAttribute(attribute);
+              } else {
+                link.setAttribute(attribute, value);
+              }
+            }
+          }
+        };
+        setLoginBranding(/^\/auth\/login\/?$/.test(globalThis.location.pathname));
+        globalThis.addEventListener('safefoto-login-branding', (event) => setLoginBranding(event.detail === true));
+      })();
+    </script>
+
     %sveltekit.head%
 
     <style>
@@ -62,6 +89,21 @@
         100% {
           transform: rotate(360deg);
         }
+      }
+
+      html[data-safefoto-login] #stencil {
+        animation: 0s linear 0.3s forwards delayedVisibility;
+      }
+
+      html[data-safefoto-login] #stencil svg {
+        display: none;
+      }
+
+      html[data-safefoto-login] #stencil::before {
+        content: '';
+        width: var(--stencil-width);
+        height: var(--stencil-width);
+        background: url('/safefoto/logo.png') center / contain no-repeat;
       }
 
       #stencil {
