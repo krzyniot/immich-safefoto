@@ -33,7 +33,7 @@ import { FileUploadInterceptor } from 'src/middleware/file-upload.interceptor';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 import { UserService } from 'src/services/user.service';
 import { sendFile } from 'src/utils/file';
-import { UUIDParamDto } from 'src/validation';
+import { UUIDParamDto, UUIDv7ParamDto } from 'src/validation';
 
 @ApiTags(ApiTag.Users)
 @Controller(RouteKey.User)
@@ -134,7 +134,7 @@ export class UserController {
   @Post('me/household/invitations/:id/accept')
   @Authenticated({ permission: Permission.UserUpdate })
   @Endpoint({ summary: 'Accept a SafeFoto household invitation', history: new HistoryBuilder().added('v3').beta('v3') })
-  acceptMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<HouseholdSummaryDto> {
+  acceptMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDv7ParamDto): Promise<HouseholdSummaryDto> {
     return this.service.acceptOwnHouseholdInvitation(auth, id);
   }
 
@@ -142,7 +142,7 @@ export class UserController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Authenticated({ permission: Permission.UserUpdate })
   @Endpoint({ summary: 'Reject a SafeFoto household invitation', history: new HistoryBuilder().added('v3').beta('v3') })
-  rejectMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
+  rejectMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDv7ParamDto): Promise<void> {
     return this.service.rejectOwnHouseholdInvitation(auth, id);
   }
 
@@ -150,7 +150,7 @@ export class UserController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Authenticated({ permission: Permission.UserUpdate })
   @Endpoint({ summary: 'Cancel an invitation sent from my SafeFoto household', history: new HistoryBuilder().added('v3').beta('v3') })
-  cancelMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
+  cancelMyHouseholdInvitation(@Auth() auth: AuthDto, @Param() { id }: UUIDv7ParamDto): Promise<void> {
     return this.service.cancelOwnHouseholdInvitation(auth, id);
   }
 
