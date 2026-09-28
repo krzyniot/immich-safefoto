@@ -6,6 +6,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
+import 'package:immich_mobile/domain/models/events.model.dart';
+import 'package:immich_mobile/domain/utils/event_stream.dart';
 import 'package:immich_mobile/domain/models/config/app_config.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
@@ -187,6 +189,27 @@ void main() {
     await showPage(tester, fetch: () async => throw const FamilySyncFetchException(503));
     expect(find.textContaining('Nie udało się odświeżyć'), findsOneWidget);
     expect(find.text('Wakacje'), findsOneWidget);
+  });
+
+  testWidgets('successful withdrawal hides old family data even if next refresh is offline', (tester) async {
+    response = emptyManifest(album: true);
+    var offline = false;
+    await showPage(
+      tester,
+      fetch: () async {
+        if (offline) {
+          throw const FamilySyncFetchException(503);
+        }
+        return response;
+      },
+    );
+    expect(find.text('Wakacje'), findsOneWidget);
+    offline = true;
+    await cache.clear();
+    EventStream.shared.emit(const FamilyPublicationChangedEvent());
+    await tester.pumpAndSettle();
+    expect(find.text('Wakacje'), findsNothing);
+    expect(find.textContaining('Nie udało się odświeżyć'), findsOneWidget);
   });
 
   testWidgets('logout clears the visible family album even when user provider is stale', (tester) async {

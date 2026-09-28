@@ -105,6 +105,10 @@ class FamilySyncCacheService {
     }
   }
 
+  /// A successful publication invalidates the old authorization snapshot.
+  /// Never show a withdrawn family photo from disk while offline.
+  Future<void> invalidate() => _cache.clear();
+
   /// Coalesce simultaneous refreshes. Failed HTTP, invalid data, or a changed
   /// login leave the previous cache intact. Only complete manifests are saved.
   Future<FamilySyncRefreshResult> refresh() {

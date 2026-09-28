@@ -15,6 +15,11 @@ class ScrollToDateEvent extends Event {
   const ScrollToDateEvent(this.date);
 }
 
+/// Refresh the family gallery after a successful owner publication change.
+class FamilyPublicationChangedEvent extends Event {
+  const FamilyPublicationChangedEvent();
+}
+
 // Asset Viewer Events
 class ViewerShowDetailsEvent extends Event {
   const ViewerShowDetailsEvent();

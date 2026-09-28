@@ -3,6 +3,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/services/timeline.service.dart';
+import 'package:immich_mobile/presentation/widgets/asset_viewer/family_publication_button.widget.dart';
+import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
+import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/favorite.action.dart';
@@ -32,6 +36,15 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     final isInLockedView = ref.watch(inLockedViewProvider);
     final isReadonlyModeEnabled = ref.watch(readonlyModeProvider);
+    final origin = ref.watch(timelineServiceProvider).origin;
+    final ownerId = ref.watch(currentUserProvider.select((user) => user?.id));
+    final showFamilyAction =
+        asset is RemoteAsset &&
+        asset.ownerId == ownerId &&
+        asset.isImage &&
+        !asset.isTrashed &&
+        !isInLockedView &&
+        (origin == TimelineOrigin.family || (origin == TimelineOrigin.main && !isReadonlyModeEnabled));
 
     final showingDetails = ref.watch(assetViewerProvider.select((state) => state.showingDetails));
 
@@ -101,12 +114,15 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     centerMiddle: true,
                     leading: const _AppBarBackButton(),
                     middle: showingDetails ? null : _AssetInfoTitle(asset: asset),
-                    trailing: !showingDetails && !isReadonlyModeEnabled
+                    trailing: !showingDetails && (!isReadonlyModeEnabled || showFamilyAction)
                         ? ImmichColorOverride(
                             color: Colors.white,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: isInLockedView ? lockedViewActions : actions,
+                              children: [
+                                if (!isReadonlyModeEnabled) ...(isInLockedView ? lockedViewActions : actions),
+                                if (showFamilyAction) FamilyPublicationButton(asset: asset, origin: origin),
+                              ],
                             ),
                           )
                         : null,

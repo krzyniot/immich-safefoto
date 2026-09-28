@@ -37,6 +37,30 @@ class FamilySyncApiRepository {
   final Map<String, String> Function()? headersProvider;
   final String Function()? apiBasePathProvider;
 
+  /// The server re-checks ownership and family membership. No local originals
+  /// or phone gallery are modified by this operation.
+  Future<void> updatePublication({required List<String> assetIds, required String mode}) async {
+    if (assetIds.isEmpty || assetIds.length > 1000 || !{'share', 'move', 'private'}.contains(mode)) {
+      throw ArgumentError('Invalid family publication request');
+    }
+    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(RegExp(r'/$'), '');
+    final response = await client
+        .put(
+          Uri.parse('$basePath/family/photos/publication'),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...headers,
+            ...?headersProvider?.call(),
+          },
+          body: jsonEncode({'assetIds': assetIds, 'mode': mode}),
+        )
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode != 204) {
+      throw FamilySyncFetchException(response.statusCode);
+    }
+  }
+
   Future<FamilySyncManifest> fetchManifest() async {
     final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(RegExp(r'/$'), '');
     final response = await client

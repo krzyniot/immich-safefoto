@@ -4,6 +4,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/family_gallery.model.dart';
+import 'package:immich_mobile/domain/models/events.model.dart';
+import 'package:immich_mobile/domain/utils/event_stream.dart';
 import 'package:immich_mobile/domain/models/timeline.model.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
@@ -38,6 +40,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
   int _requestGeneration = 0;
   StreamSubscription? _userSubscription;
   StreamSubscription? _tokenSubscription;
+  StreamSubscription? _publicationSubscription;
   String? _lastObservedToken;
   TimelineService? _familyTimeline;
   FamilySyncManifest? _timelineManifest;
@@ -60,6 +63,13 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
       _lastObservedToken = token;
       if (changed || token == null) {
         _clearVisibleFamily();
+      }
+    });
+    _publicationSubscription = EventStream.shared.listen<FamilyPublicationChangedEvent>((_) {
+      if (mounted) {
+        _dropTimeline();
+        setState(() => _manifest = null);
+        _loadAndRefresh();
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -101,6 +111,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     _requestGeneration++;
     _userSubscription?.cancel();
     _tokenSubscription?.cancel();
+    _publicationSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _dropTimeline();
     super.dispose();
