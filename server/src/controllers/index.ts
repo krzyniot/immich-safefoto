@@ -12,6 +12,7 @@ import { DuplicateController } from 'src/controllers/duplicate.controller';
 import { FaceController } from 'src/controllers/face.controller';
 import { FamilyAlbumController } from 'src/controllers/family-album.controller';
 import { FamilyPhotoController } from 'src/controllers/family-photo.controller';
+import { FamilySyncController } from 'src/controllers/family-sync.controller';
 import { HouseholdAdminController } from 'src/controllers/household-admin.controller';
 import { IntegrityAdminController } from 'src/controllers/integrity-admin.controller';
 import { JobController } from 'src/controllers/job.controller';
@@ -58,6 +59,7 @@ export const controllers = [
   FaceController,
   FamilyPhotoController,
   FamilyAlbumController,
+  FamilySyncController,
   HouseholdAdminController,
   IntegrityAdminController,
   JobController,

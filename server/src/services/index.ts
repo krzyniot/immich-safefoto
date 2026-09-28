@@ -13,6 +13,7 @@ import { DownloadService } from 'src/services/download.service';
 import { DuplicateService } from 'src/services/duplicate.service';
 import { FamilyAlbumService } from 'src/services/family-album.service';
 import { FamilyPhotoService } from 'src/services/family-photo.service';
+import { FamilySyncService } from 'src/services/family-sync.service';
 import { HlsService } from 'src/services/hls.service';
 import { IntegrityService } from 'src/services/integrity.service';
 import { JobService } from 'src/services/job.service';
@@ -68,6 +69,7 @@ export const services = [
   DuplicateService,
   FamilyPhotoService,
   FamilyAlbumService,
+  FamilySyncService,
   IntegrityService,
   HlsService,
   JobService,
