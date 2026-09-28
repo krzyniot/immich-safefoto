@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/family_gallery.model.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
+import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
 import 'package:immich_mobile/infrastructure/repositories/family_sync_api.repository.dart';
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
@@ -30,11 +33,24 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
   bool _refreshing = false;
   String? _error;
   int _requestGeneration = 0;
+  StreamSubscription? _userSubscription;
+  StreamSubscription? _tokenSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final store = ref.read(storeServiceProvider);
+    _userSubscription = store.watch(StoreKey.currentUser).listen((user) {
+      if (user == null) {
+        _clearVisibleFamily();
+      }
+    });
+    _tokenSubscription = store.watch(StoreKey.accessToken).listen((token) {
+      if (token == null) {
+        _clearVisibleFamily();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadAndRefresh();
@@ -42,9 +58,25 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     });
   }
 
+  void _clearVisibleFamily() {
+    _requestGeneration++;
+    if (mounted) {
+      setState(() {
+        _manifest = null;
+        _albumId = null;
+        _visibleUserId = null;
+        _refreshing = false;
+        _loading = false;
+        _error = 'Zaloguj się, aby zobaczyć zdjęcia rodziny.';
+      });
+    }
+  }
+
   @override
   void dispose() {
     _requestGeneration++;
+    _userSubscription?.cancel();
+    _tokenSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

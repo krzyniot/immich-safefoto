@@ -133,6 +133,16 @@ void main() {
     expect(find.text('Wakacje'), findsOneWidget);
   });
 
+  testWidgets('logout clears the visible family album even when user provider is stale', (tester) async {
+    response = emptyManifest(album: true);
+    await showPage(tester);
+    expect(find.text('Wakacje'), findsOneWidget);
+    await store.delete(StoreKey.accessToken);
+    await tester.pumpAndSettle();
+    expect(find.text('Wakacje'), findsNothing);
+    expect(find.textContaining('Zaloguj się'), findsOneWidget);
+  });
+
   testWidgets('a network failure never invents a successful empty manifest', (tester) async {
     await showPage(tester, fetch: () async => throw StateError('offline'));
     expect(find.textContaining('Nie udało się odświeżyć'), findsOneWidget);
