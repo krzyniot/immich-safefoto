@@ -9,10 +9,6 @@ class ImmichLoadingIndicator extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoAnimationController = useAnimationController(duration: const Duration(seconds: 6))
-      ..reverse()
-      ..repeat();
-
     final borderAnimationController = useAnimationController(duration: const Duration(seconds: 6))..repeat();
 
     return Container(
@@ -31,12 +27,9 @@ class ImmichLoadingIndicator extends HookWidget {
             child: child,
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: RotationTransition(
-            turns: logoAnimationController,
-            child: const ImmichLogo(heroTag: 'logo'),
-          ),
+        child: const Padding(
+          padding: EdgeInsets.all(15),
+          child: ImmichLogo(heroTag: 'logo'),
         ),
       ),
     );

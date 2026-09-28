@@ -12,17 +12,17 @@ enum BackgroundTaskType { case refresh, processing }
  
  ## For background refresh (short-running sync):
  
- e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"app.alextran.immich.background.refreshUpload"]
+ e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"pl.safefoto.app.background.refreshUpload"]
  
  ## For background processing (long-running upload):
  
- e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"app.alextran.immich.background.processingUpload"]
+ e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"pl.safefoto.app.background.processingUpload"]
 
  * To simulate task expiration (useful for testing expiration handlers):
  
- e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateExpirationForTaskWithIdentifier:@"app.alextran.immich.background.refreshUpload"]
+ e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateExpirationForTaskWithIdentifier:@"pl.safefoto.app.background.refreshUpload"]
  
- e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateExpirationForTaskWithIdentifier:@"app.alextran.immich.background.processingUpload"]
+ e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateExpirationForTaskWithIdentifier:@"pl.safefoto.app.background.processingUpload"]
  
  * 3. Resume the application to see the background code execute
  * 

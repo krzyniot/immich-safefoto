@@ -1,4 +1,4 @@
-app_identifier "app.alextran.immich" # The bundle identifier of your app
+app_identifier "pl.safefoto.app" # The bundle identifier of your app
 apple_id "altran@futo.org" # Your Apple email address
 
 

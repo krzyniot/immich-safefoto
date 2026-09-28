@@ -1,5 +1,5 @@
 name: immich_mobile
-description: Immich - selfhosted backup media file on mobile phone
+description: SafeFoto - prywatna kopia zdjęć i filmów dla rodziny
 
 publish_to: 'none'
 version: 3.0.1+3054
@@ -142,10 +142,10 @@ flutter:
         - asset: fonts/GoogleSansCode/GoogleSansCode-SemiBold.ttf
           weight: 600
 flutter_launcher_icons:
-  image_path_android: 'assets/immich-logo.png'
-  adaptive_icon_background: '#ffffff'
-  adaptive_icon_foreground: 'assets/immich-logo-android-adaptive-icon.png'
-  image_path_ios: 'assets/immich-logo-w-bg.png'
+  image_path_android: 'assets/safefoto-logo.png'
+  adaptive_icon_background: '#f6f8fe'
+  adaptive_icon_foreground: 'assets/safefoto-logo-adaptive-icon.png'
+  image_path_ios: 'assets/safefoto-logo-with-bg.png'
   android: 'ic_launcher'
   ios: false
   remove_alpha_ios: true

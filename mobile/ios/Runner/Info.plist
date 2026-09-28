@@ -6,8 +6,8 @@
     <string>$(CUSTOM_GROUP_ID)</string>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
-      <string>app.alextran.immich.background.refreshUpload</string>
-      <string>app.alextran.immich.background.processingUpload</string>
+      <string>pl.safefoto.app.background.refreshUpload</string>
+      <string>pl.safefoto.app.background.processingUpload</string>
     </array>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true />

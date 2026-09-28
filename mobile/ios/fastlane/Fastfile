@@ -19,9 +19,9 @@ platform :ios do
   # Constants
   TEAM_ID = "2W7AC6T8T5"
   CODE_SIGN_IDENTITY = "Apple Distribution: FUTO Holdings, Inc. (#{TEAM_ID})"
-  BASE_BUNDLE_ID = "app.alextran.immich"
+  BASE_BUNDLE_ID = "pl.safefoto.app"
   DEV_BUNDLE_ID  = "tech.futo.immich.testflight"
-  DEV_GROUP_ID   = "group.app.immich.share.testflight"
+  DEV_GROUP_ID   = "group.pl.safefoto.app.share.testflight"
 
   # Helper method to get App Store Connect API key
   def get_api_key
