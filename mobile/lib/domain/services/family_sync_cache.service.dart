@@ -73,6 +73,7 @@ class FamilySyncCacheService {
   final FamilySyncIdentity? Function() _identity;
   final Future<FamilySyncManifest> Function() _fetchManifest;
   Future<FamilySyncRefreshResult>? _inFlight;
+  int _revision = 0;
 
   /// Read only a cache belonging to the CURRENT account on the CURRENT server.
   /// Invalid or unrecognized cache data is never interpreted as an empty
@@ -107,7 +108,11 @@ class FamilySyncCacheService {
 
   /// A successful publication invalidates the old authorization snapshot.
   /// Never show a withdrawn family photo from disk while offline.
-  Future<void> invalidate() => _cache.clear();
+  Future<void> invalidate() async {
+    // An older in-flight response must not resurrect a withdrawn publication.
+    _revision++;
+    await _cache.clear();
+  }
 
   /// Coalesce simultaneous refreshes. Failed HTTP, invalid data, or a changed
   /// login leave the previous cache intact. Only complete manifests are saved.
@@ -124,19 +129,20 @@ class FamilySyncCacheService {
   }
 
   Future<FamilySyncRefreshResult> _refresh() async {
+    final revision = _revision;
     final identity = _identity();
     if (identity == null) {
       throw StateError('Family sync requires an authenticated account');
     }
 
     final previous = await load();
-    if (_identity() != identity) {
-      throw StateError('Family sync account changed during refresh');
+    if (_identity() != identity || _revision != revision) {
+      throw StateError('Family sync session or publication changed during refresh');
     }
 
     final manifest = await _fetchManifest();
-    if (_identity() != identity) {
-      throw StateError('Family sync account changed during refresh');
+    if (_identity() != identity || _revision != revision) {
+      throw StateError('Family sync session or publication changed during refresh');
     }
 
     final delta = manifest.reconcile(previous);
@@ -149,11 +155,11 @@ class FamilySyncCacheService {
     });
     await _cache.write(encoded);
     // A session switch during a database write must not retain old data.
-    if (_identity() != identity) {
+    if (_identity() != identity || _revision != revision) {
       if (await _cache.read() == encoded) {
         await _cache.clear();
       }
-      throw StateError("Family sync account changed during refresh");
+      throw StateError("Family sync session or publication changed during refresh");
     }
     return FamilySyncRefreshResult(manifest: manifest, delta: delta);
   }
