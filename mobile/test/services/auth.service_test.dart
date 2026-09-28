@@ -56,6 +56,7 @@ void main() {
 
   test('SF-FAM-MOB-006 invalid session clears account cache and account-bound upload work', () async {
     await Store.put(StoreKey.accessToken, 'old-account-token');
+    await Store.put(StoreKey.familySyncManifestJson, 'old-family-cache');
     await SettingsRepository.instance.write(SettingsKey.backupEnabled, true);
     when(() => backgroundSyncManager.cancel()).thenAnswer((_) async {});
     when(() => backgroundUploadService.cancel()).thenAnswer((_) async => 0);
@@ -64,6 +65,7 @@ void main() {
     await sut.clearLocalData();
 
     expect(Store.tryGet(StoreKey.accessToken), isNull);
+    expect(Store.tryGet(StoreKey.familySyncManifestJson), isNull);
     expect(SettingsRepository.instance.appConfig.backup.enabled, isFalse);
     verify(() => backgroundSyncManager.cancel()).called(1);
     verify(() => backgroundUploadService.cancel()).called(1);
@@ -72,6 +74,7 @@ void main() {
 
   test('SF-FAM-MOB-006 cache cleanup remains fail-closed when upload cancellation fails', () async {
     await Store.put(StoreKey.accessToken, 'old-account-token');
+    await Store.put(StoreKey.familySyncManifestJson, 'old-family-cache');
     when(() => backgroundSyncManager.cancel()).thenAnswer((_) async {});
     when(() => backgroundUploadService.cancel()).thenAnswer((_) async => throw Exception('queue failure'));
     when(() => authRepository.clearLocalData()).thenAnswer((_) async {});
@@ -79,6 +82,7 @@ void main() {
     await expectLater(sut.clearLocalData(), throwsException);
 
     expect(Store.tryGet(StoreKey.accessToken), isNull);
+    expect(Store.tryGet(StoreKey.familySyncManifestJson), isNull);
     verify(() => authRepository.clearLocalData()).called(1);
   });
 

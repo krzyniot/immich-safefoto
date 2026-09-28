@@ -15,6 +15,13 @@ class FamilySyncAsset {
   final bool hideFromPersonalTimeline;
   final DateTime updatedAt;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'ownerId': ownerId,
+    'hideFromPersonalTimeline': hideFromPersonalTimeline,
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
+
   factory FamilySyncAsset.fromJson(Map<String, dynamic> data) => FamilySyncAsset(
     id: _requiredString(data, 'id'),
     ownerId: _requiredString(data, 'ownerId'),
@@ -37,6 +44,14 @@ class FamilySyncAlbum {
   final String description;
   final String defaultMode;
   final DateTime updatedAt;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'defaultMode': defaultMode,
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
 
   factory FamilySyncAlbum.fromJson(Map<String, dynamic> data) {
     final mode = _requiredString(data, 'defaultMode');
@@ -67,6 +82,15 @@ class FamilySyncManifest {
   final List<FamilySyncAsset> assets;
   final List<FamilySyncAlbum> albums;
   final List<FamilyAlbumLink> albumAssets;
+
+  Map<String, dynamic> toJson() => {
+    'version': 1,
+    'householdId': householdId,
+    'generatedAt': generatedAt.toUtc().toIso8601String(),
+    'assets': assets.map((asset) => asset.toJson()).toList(),
+    'albums': albums.map((album) => album.toJson()).toList(),
+    'albumAssets': albumAssets.map((link) => {'albumId': link.albumId, 'assetId': link.assetId}).toList(),
+  };
 
   factory FamilySyncManifest.fromJson(Map<String, dynamic> data) {
     if (data['version'] != 1) {

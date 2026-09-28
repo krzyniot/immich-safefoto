@@ -124,8 +124,12 @@ class AuthService {
       _backgroundSyncManager.cancel(),
       _backgroundUploadService.cancel(),
       _authRepository.clearLocalData(),
-      Store.delete(StoreKey.currentUser),
-      Store.delete(StoreKey.accessToken),
+      // Serialize account-store cleanup to avoid racing concurrent Drift writes.
+      () async {
+        await Store.delete(StoreKey.currentUser);
+        await Store.delete(StoreKey.accessToken);
+        await Store.delete(StoreKey.familySyncManifestJson);
+      }(),
       SettingsRepository.instance.write(SettingsKey.backupEnabled, false),
       SettingsRepository.instance.clear(const [
         .networkAutoEndpointSwitching,
