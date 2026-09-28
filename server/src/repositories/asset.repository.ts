@@ -796,6 +796,23 @@ export class AssetRepository {
               .where((eb) => eb.or([eb('asset.stackId', 'is', null), eb(eb.table('stack'), 'is not', null)])),
           )
           .$if(!!options.userIds, (qb) => qb.where('asset.ownerId', '=', anyUuid(options.userIds!)))
+          .$if(
+            !!options.requesterId &&
+              options.userIds?.length === 1 &&
+              options.userIds[0] === options.requesterId &&
+              !options.albumId,
+            (qb) =>
+              qb.where((eb) =>
+                eb.not(
+                  eb.exists(
+                    eb
+                      .selectFrom('family_asset')
+                      .whereRef('family_asset.assetId', '=', 'asset.id')
+                      .where('family_asset.hideFromPersonalTimeline', '=', true),
+                  ),
+                ),
+              ),
+          )
           .$if(!!options.albumId && !!options.requesterId, (qb) =>
             qb.where('asset.ownerId', 'in', householdUserIds(this.db, options.requesterId!)),
           )
@@ -893,6 +910,23 @@ export class AssetRepository {
           )
           .$if(!!options.personId, (qb) => hasPeople(qb, [options.personId!]))
           .$if(!!options.userIds, (qb) => qb.where('asset.ownerId', '=', anyUuid(options.userIds!)))
+          .$if(
+            !!options.requesterId &&
+              options.userIds?.length === 1 &&
+              options.userIds[0] === options.requesterId &&
+              !options.albumId,
+            (qb) =>
+              qb.where((eb) =>
+                eb.not(
+                  eb.exists(
+                    eb
+                      .selectFrom('family_asset')
+                      .whereRef('family_asset.assetId', '=', 'asset.id')
+                      .where('family_asset.hideFromPersonalTimeline', '=', true),
+                  ),
+                ),
+              ),
+          )
           .$if(!!options.albumId && !!options.requesterId, (qb) =>
             qb.where('asset.ownerId', 'in', householdUserIds(this.db, options.requesterId!)),
           )

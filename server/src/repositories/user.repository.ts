@@ -919,6 +919,11 @@ export class UserRepository {
       .where('role', '!=', AlbumUserRole.Owner)
       .execute();
 
+    await tx
+      .deleteFrom('family_asset')
+      .where('assetId', 'in', (eb) => eb.selectFrom('asset').select('id').where('ownerId', '=', user.id))
+      .execute();
+
     const updated = await tx
       .updateTable('user')
       .set({ householdId: targetHouseholdId, isHouseholdAdmin: false, quotaSizeInBytes: memberQuota })
