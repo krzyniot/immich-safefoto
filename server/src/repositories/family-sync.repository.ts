@@ -36,6 +36,12 @@ export class FamilySyncRepository {
             'asset.id',
             'asset.ownerId',
             'asset.fileCreatedAt',
+            'asset.localDateTime',
+            'asset.originalFileName',
+            'asset.width',
+            'asset.height',
+            'asset.isFavorite',
+            'asset.thumbhash',
             'family_asset.hideFromPersonalTimeline',
             'family_asset.updatedAt',
           ])
@@ -118,6 +124,9 @@ export class FamilySyncRepository {
           assets: assets.map((asset) => ({
             ...asset,
             fileCreatedAt: asset.fileCreatedAt.toISOString(),
+            localDateTime: asset.localDateTime.toISOString(),
+            name: asset.originalFileName,
+            thumbHash: asset.thumbhash?.toString('base64') ?? null,
             updatedAt: asset.updatedAt.toISOString(),
           })),
           albums: albums.map((album) => ({ ...album, updatedAt: album.updatedAt.toISOString() })),

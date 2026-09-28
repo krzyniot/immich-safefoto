@@ -4,6 +4,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/family_gallery.model.dart';
+import 'package:immich_mobile/domain/models/timeline.model.dart';
+import 'package:immich_mobile/domain/services/timeline.service.dart';
+import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
+import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
@@ -11,9 +16,6 @@ import 'package:immich_mobile/infrastructure/repositories/family_sync_api.reposi
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
-import 'package:immich_mobile/utils/image_url_builder.dart';
-import 'package:openapi/api.dart';
-import 'package:immich_mobile/presentation/widgets/images/remote_image_provider.dart';
 
 /// A distinct read-only family gallery. It never imports photos from the
 /// private timeline and has no delete or phone-gallery operations.
@@ -29,25 +31,34 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
   FamilySyncManifest? _manifest;
   String? _albumId;
   String? _visibleUserId;
+  FamilySyncIdentity? _visibleIdentity;
   bool _loading = true;
   bool _refreshing = false;
   String? _error;
   int _requestGeneration = 0;
   StreamSubscription? _userSubscription;
   StreamSubscription? _tokenSubscription;
+  String? _lastObservedToken;
+  TimelineService? _familyTimeline;
+  FamilySyncManifest? _timelineManifest;
+  String? _timelineAlbumId;
+  GroupAssetsBy? _timelineGrouping;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final store = ref.read(storeServiceProvider);
+    _lastObservedToken = store.tryGet(StoreKey.accessToken);
     _userSubscription = store.watch(StoreKey.currentUser).listen((user) {
       if (user == null) {
         _clearVisibleFamily();
       }
     });
     _tokenSubscription = store.watch(StoreKey.accessToken).listen((token) {
-      if (token == null) {
+      final changed = token != _lastObservedToken;
+      _lastObservedToken = token;
+      if (changed || token == null) {
         _clearVisibleFamily();
       }
     });
@@ -58,13 +69,26 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     });
   }
 
+  void _dropTimeline() {
+    final previous = _familyTimeline;
+    _familyTimeline = null;
+    _timelineManifest = null;
+    _timelineAlbumId = null;
+    _timelineGrouping = null;
+    if (previous != null) {
+      unawaited(previous.dispose());
+    }
+  }
+
   void _clearVisibleFamily() {
     _requestGeneration++;
+    _dropTimeline();
     if (mounted) {
       setState(() {
         _manifest = null;
         _albumId = null;
         _visibleUserId = null;
+        _visibleIdentity = null;
         _refreshing = false;
         _loading = false;
         _error = 'Zaloguj się, aby zobaczyć zdjęcia rodziny.';
@@ -78,6 +102,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     _userSubscription?.cancel();
     _tokenSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    _dropTimeline();
     super.dispose();
   }
 
@@ -93,10 +118,12 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     final service = ref.read(familySyncCacheServiceProvider);
     final identity = currentFamilySyncIdentity(ref.read(storeServiceProvider));
     if (identity == null) {
+      _dropTimeline();
       if (mounted) {
         setState(() {
           _manifest = null;
           _visibleUserId = null;
+          _visibleIdentity = null;
           _loading = false;
           _refreshing = false;
           _error = 'Zaloguj się, aby zobaczyć zdjęcia rodziny.';
@@ -106,11 +133,12 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     }
 
     setState(() {
-      if (_visibleUserId != identity.userId) {
+      if (_visibleIdentity != identity) {
         _manifest = null;
         _albumId = null;
       }
       _visibleUserId = identity.userId;
+      _visibleIdentity = identity;
       _loading = _manifest == null;
       _refreshing = true;
       _error = null;
@@ -145,11 +173,15 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
       }
       final session = currentFamilySyncIdentity(ref.read(storeServiceProvider));
       final unauthorized = error is FamilySyncFetchException && (error.statusCode == 401 || error.statusCode == 403);
+      if (unauthorized || session != identity) {
+        _dropTimeline();
+      }
       setState(() {
         // On a revoked session, NEVER render previously cached family thumbnails.
         if (unauthorized || session != identity) {
           _manifest = null;
           _albumId = null;
+          _visibleIdentity = null;
         }
         _loading = false;
         _refreshing = false;
@@ -160,165 +192,128 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Do not render another account's manifest even for a single stale frame.
-    final userId = ref.watch(currentUserProvider.select((user) => user?.id));
-    final manifest = _visibleUserId == userId ? _manifest : null;
-    final colors = Theme.of(context).colorScheme;
-    final assets = manifest == null ? <FamilySyncAsset>[] : familyGalleryAssets(manifest, albumId: _albumId);
-    final groups = familyGalleryMonths(assets);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Zdjęcia rodziny'),
-        actions: [
-          if (_refreshing)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 18),
-              child: SizedBox(width: 19, height: 19, child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else
-            IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _loadAndRefresh),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadAndRefresh,
-        child: _loading && manifest == null
-            ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  if (_error != null)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Card(
-                          color: colors.surfaceContainerHighest,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Text(_error!, style: TextStyle(color: colors.onSurface)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (manifest != null) ...[
-                    if (manifest.albums.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              ChoiceChip(
-                                label: const Text('Wszystkie'),
-                                selected: _albumId == null,
-                                onSelected: (_) => setState(() => _albumId = null),
-                              ),
-                              for (final album in manifest.albums) ...[
-                                const SizedBox(width: 8),
-                                ChoiceChip(
-                                  label: Text(album.name),
-                                  selected: _albumId == album.id,
-                                  onSelected: (_) => setState(() => _albumId = album.id),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (assets.isEmpty)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'Nie ma jeszcze zdjęć w tej części galerii.\n'
-                              'Udostępnione zdjęcia członków rodziny pojawią się tutaj.',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ),
-                    for (final group in groups) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
-                          child: Text(
-                            MaterialLocalizations.of(context).formatMonthYear(group.month),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                      ),
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        sliver: SliverGrid.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 3,
-                            mainAxisSpacing: 3,
-                          ),
-                          itemCount: group.assets.length,
-                          itemBuilder: (context, index) {
-                            final asset = group.assets[index];
-                            return Semantics(
-                              label: 'Zdjęcie rodzinne',
-                              child: InkWell(
-                                key: ValueKey('family-photo-${asset.id}'),
-                                onTap: () => _preview(context, asset),
-                                child: Image(
-                                  image: RemoteImageProvider(url: getThumbnailUrlForRemoteId(asset.id)),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, error, stackTrace) =>
-                                      const Center(child: Icon(Icons.broken_image_outlined)),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ],
-                ],
-              ),
-      ),
-    );
+  TimelineService _timelineFor(FamilySyncManifest manifest, GroupAssetsBy groupBy) {
+    if (_familyTimeline == null ||
+        !identical(_timelineManifest, manifest) ||
+        _timelineAlbumId != _albumId ||
+        _timelineGrouping != groupBy) {
+      final previous = _familyTimeline;
+      _familyTimeline = TimelineService.fromAssetsWithBuckets(
+        familyTimelineAssets(manifest, albumId: _albumId),
+        origin: TimelineOrigin.family,
+        groupBy: groupBy,
+      );
+      _timelineManifest = manifest;
+      _timelineAlbumId = _albumId;
+      _timelineGrouping = groupBy;
+      if (previous != null) {
+        unawaited(previous.dispose());
+      }
+    }
+    return _familyTimeline!;
   }
 
-  Future<void> _preview(BuildContext context, FamilySyncAsset asset) async {
-    // A new request checks current server permissions; no server deletion
-    // or local gallery changes are available in this read-only viewer.
-    await showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              child: Image(
-                image: RemoteImageProvider(url: getThumbnailUrlForRemoteId(asset.id, type: AssetMediaSize.preview)),
-                fit: BoxFit.contain,
-                errorBuilder: (_, error, stackTrace) => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('Nie można wyświetlić zdjęcia.', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton(
-                tooltip: 'Zamknij',
-                color: Colors.white,
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
+  @override
+  Widget build(BuildContext context) {
+    // A family manifest must never be rendered after the session is revoked.
+    final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+    final identity = currentFamilySyncIdentity(ref.read(storeServiceProvider));
+    final manifest = identity != null && _visibleIdentity == identity && _visibleUserId == userId ? _manifest : null;
+    final colors = Theme.of(context).colorScheme;
+
+    if (manifest == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Zdjęcia rodziny')),
+        body: Center(
+          child: _loading
+              ? const CircularProgressIndicator()
+              : Text(_error ?? 'Nie ma jeszcze zdjęć rodziny.', textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    final configuredGroup = ref.watch(appConfigProvider.select((config) => config.timeline.groupAssetsBy));
+    final groupBy = configuredGroup == GroupAssetsBy.month ? GroupAssetsBy.month : GroupAssetsBy.day;
+    final timeline = _timelineFor(manifest, groupBy);
+    final assets = familyGalleryAssets(manifest, albumId: _albumId);
+    final timelineKey = [
+      'family-timeline',
+      identity!.userId,
+      manifest.householdId,
+      manifest.generatedAt.toIso8601String(),
+      _albumId ?? 'all',
+      groupBy.name,
+    ].join('-');
+    return ProviderScope(
+      key: ValueKey(timelineKey),
+      overrides: [timelineServiceProvider.overrideWithValue(timeline)],
+      child: Timeline(
+        readOnly: true,
+        groupBy: groupBy,
+        onRefresh: _loadAndRefresh,
+        appBar: SliverAppBar(
+          floating: true,
+          title: const Text('Zdjęcia rodziny'),
+          actions: [
+            if (_refreshing)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 18),
+                child: Center(child: SizedBox(width: 19, height: 19, child: CircularProgressIndicator(strokeWidth: 2))),
+              )
+            else
+              IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _loadAndRefresh),
           ],
         ),
+        topSliverWidget: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Card(
+                    color: colors.surfaceContainerHighest,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(_error!, style: TextStyle(color: colors.onSurface)),
+                    ),
+                  ),
+                ),
+              if (manifest.albums.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Wszystkie'),
+                        selected: _albumId == null,
+                        onSelected: (_) => setState(() => _albumId = null),
+                      ),
+                      for (final album in manifest.albums) ...[
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text(album.name),
+                          selected: _albumId == album.id,
+                          onSelected: (_) => setState(() => _albumId = album.id),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              if (assets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'Nie ma jeszcze zdjęć w tej części galerii.\n'
+                    'Udostępnione zdjęcia członków rodziny pojawią się tutaj.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        topSliverWidgetHeight: manifest.albums.isEmpty ? 0 : 65,
       ),
     );
   }

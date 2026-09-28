@@ -6,6 +6,12 @@ const FamilySyncAsset = z.object({
   id: z.uuidv4(),
   ownerId: z.uuidv4(),
   fileCreatedAt: z.string().meta({ format: 'date-time' }),
+  localDateTime: z.string().meta({ format: 'date-time' }),
+  name: z.string(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+  isFavorite: z.boolean(),
+  thumbHash: z.string().nullable(),
   hideFromPersonalTimeline: z.boolean(),
   updatedAt: z.string().meta({ format: 'date-time' }),
 });

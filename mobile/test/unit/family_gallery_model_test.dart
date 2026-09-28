@@ -41,6 +41,30 @@ void main() {
     expect(familyGalleryAssets(manifest(), albumId: 'nonexistent'), isEmpty);
   });
 
+  test('shared timeline projects only published IDs into the same remote asset model as private timeline', () {
+    final shared = familyTimelineAssets(manifest(), albumId: 'album');
+    expect(shared.map((asset) => asset.id), ['new', 'old']);
+    expect(shared.every((asset) => asset.localId == null && asset.hasRemote), isTrue);
+    expect(shared.every((asset) => asset.ownerId == 'owner'), isTrue);
+  });
+
+  test('shared timeline preserves authorized metadata and capture time', () {
+    final data = manifest().toJson();
+    final first = (data['assets'] as List).first as Map<String, dynamic>;
+    first['name'] = 'rodzina.jpg';
+    first['width'] = 4032;
+    first['height'] = 3024;
+    first['isFavorite'] = true;
+    first['localDateTime'] = '2024-01-05T13:00:00Z';
+    final shared = familyTimelineAssets(FamilySyncManifest.fromJson(data));
+    final old = shared.singleWhere((asset) => asset.id == 'old');
+    expect(old.name, 'rodzina.jpg');
+    expect(old.width, 4032);
+    expect(old.height, 3024);
+    expect(old.isFavorite, isTrue);
+    expect(old.createdAt, DateTime.utc(2024, 1, 5, 13));
+  });
+
   test('older version 1 manifest without capture date remains readable', () {
     final old = photo('old', '2024-01-05T12:00:00Z')..remove('fileCreatedAt');
     final data = manifest().toJson()

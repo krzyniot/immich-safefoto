@@ -7,6 +7,12 @@ class FamilySyncAsset {
     required this.id,
     required this.ownerId,
     required this.fileCreatedAt,
+    this.localDateTime,
+    this.name,
+    this.width,
+    this.height,
+    this.isFavorite = false,
+    this.thumbHash,
     required this.hideFromPersonalTimeline,
     required this.updatedAt,
   });
@@ -14,6 +20,12 @@ class FamilySyncAsset {
   final String id;
   final String ownerId;
   final DateTime fileCreatedAt;
+  final DateTime? localDateTime;
+  final String? name;
+  final int? width;
+  final int? height;
+  final bool isFavorite;
+  final String? thumbHash;
   final bool hideFromPersonalTimeline;
   final DateTime updatedAt;
 
@@ -21,6 +33,12 @@ class FamilySyncAsset {
     'id': id,
     'ownerId': ownerId,
     'fileCreatedAt': fileCreatedAt.toUtc().toIso8601String(),
+    if (localDateTime != null) 'localDateTime': localDateTime!.toUtc().toIso8601String(),
+    if (name != null) 'name': name,
+    if (width != null) 'width': width,
+    if (height != null) 'height': height,
+    'isFavorite': isFavorite,
+    if (thumbHash != null) 'thumbHash': thumbHash,
     'hideFromPersonalTimeline': hideFromPersonalTimeline,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
   };
@@ -30,6 +48,12 @@ class FamilySyncAsset {
     ownerId: _requiredString(data, 'ownerId'),
     // Older v1 snapshots did not include capture time.
     fileCreatedAt: DateTime.parse(_requiredString(data, data['fileCreatedAt'] == null ? 'updatedAt' : 'fileCreatedAt')),
+    localDateTime: data['localDateTime'] == null ? null : DateTime.parse(_requiredString(data, 'localDateTime')),
+    name: data['name'] == null ? null : _requiredString(data, 'name'),
+    width: _optionalInt(data, 'width'),
+    height: _optionalInt(data, 'height'),
+    isFavorite: data['isFavorite'] == null ? false : _requiredBool(data, 'isFavorite'),
+    thumbHash: data['thumbHash'] == null ? null : _requiredString(data, 'thumbHash'),
     hideFromPersonalTimeline: _requiredBool(data, 'hideFromPersonalTimeline'),
     updatedAt: DateTime.parse(_requiredString(data, 'updatedAt')),
   );
@@ -222,6 +246,17 @@ List<dynamic> _requiredList(Map<String, dynamic> data, String key) {
   final value = data[key];
   if (value is! List<dynamic>) {
     throw FormatException('Missing or invalid $key');
+  }
+  return value;
+}
+
+int? _optionalInt(Map<String, dynamic> data, String key) {
+  final value = data[key];
+  if (value == null) {
+    return null;
+  }
+  if (value is! int || value < 0) {
+    throw FormatException('Invalid $key');
   }
   return value;
 }

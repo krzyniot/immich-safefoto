@@ -1,13 +1,18 @@
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
+import 'package:immich_mobile/domain/models/config/app_config.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/presentation/pages/family_gallery.page.dart';
+import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/user.provider.dart';
@@ -15,9 +20,19 @@ import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/family_sync_api.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
 import 'package:mocktail/mocktail.dart';
+// Test harness uses the already-resolved transitive plugin to mock platform preferences.
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/service.mock.dart';
 import '../fixtures/user.stub.dart';
+
+class _EmptyTranslations extends AssetLoader {
+  const _EmptyTranslations();
+
+  @override
+  Future<Map<String, dynamic>> load(String path, Locale locale) async => {};
+}
 
 class _MemoryCache implements FamilySyncCacheStore {
   String? data;
@@ -49,6 +64,11 @@ FamilySyncManifest emptyManifest({bool album = false}) => FamilySyncManifest.fro
 });
 
 void main() {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await EasyLocalization.ensureInitialized();
+    await initializeDateFormatting('pl');
+  });
   late Drift db;
   late StoreService store;
   late MockUserService users;
@@ -57,7 +77,7 @@ void main() {
 
   setUp(() async {
     db = Drift(DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true));
-    store = await StoreService.create(storeRepository: DriftStoreRepository(db), listenUpdates: false);
+    store = await StoreService.init(storeRepository: DriftStoreRepository(db), listenUpdates: false);
     await store.put(StoreKey.currentUser, UserStub.admin);
     await store.put(StoreKey.serverEndpoint, 'https://test.safefoto.pl/api');
     await store.put(StoreKey.accessToken, 'test-token');
@@ -85,8 +105,14 @@ void main() {
           storeServiceProvider.overrideWithValue(store),
           userServiceProvider.overrideWithValue(users),
           familySyncCacheServiceProvider.overrideWithValue(service),
+          appConfigProvider.overrideWithValue(const AppConfig()),
         ],
-        child: const MaterialApp(home: FamilyGalleryPage()),
+        child: EasyLocalization(
+          supportedLocales: const [Locale('pl')],
+          path: 'test',
+          assetLoader: const _EmptyTranslations(),
+          child: const MaterialApp(home: FamilyGalleryPage()),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -107,6 +133,36 @@ void main() {
     await tester.tap(find.text('Wakacje'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Nie ma jeszcze zdjęć'), findsOneWidget);
+  });
+
+  testWidgets('uses the same Timeline widget as the private gallery for family photos', (tester) async {
+    response = FamilySyncManifest.fromJson({
+      ...emptyManifest().toJson(),
+      'assets': [
+        {
+          'id': 'family-photo',
+          'ownerId': 'family-owner',
+          'fileCreatedAt': '2026-09-28T10:00:00Z',
+          'hideFromPersonalTimeline': true,
+          'updatedAt': '2026-09-28T10:00:00Z',
+        },
+      ],
+    });
+    await showPage(tester);
+    expect(find.byType(Timeline), findsOneWidget);
+    final timeline = tester.widget<Timeline>(find.byType(Timeline));
+    expect(timeline.readOnly, isTrue);
+    expect(timeline.withScrubber, isTrue);
+    expect(find.byIcon(Icons.delete), findsNothing);
+  });
+
+  testWidgets('switching access tokens hides an old family snapshot immediately', (tester) async {
+    response = emptyManifest(album: true);
+    await showPage(tester);
+    expect(find.text('Wakacje'), findsOneWidget);
+    await store.put(StoreKey.accessToken, 'another-session');
+    await tester.pumpAndSettle();
+    expect(find.text('Wakacje'), findsNothing);
   });
 
   testWidgets('revoked access hides an old cached family album', (tester) async {

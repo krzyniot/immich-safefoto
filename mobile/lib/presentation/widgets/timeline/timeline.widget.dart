@@ -45,6 +45,7 @@ class Timeline extends StatelessWidget {
     this.readOnly = false,
     this.persistentBottomBar = false,
     this.loadingWidget,
+    this.onRefresh,
   });
 
   final Widget? topSliverWidget;
@@ -60,6 +61,7 @@ class Timeline extends StatelessWidget {
   final bool readOnly;
   final bool persistentBottomBar;
   final Widget? loadingWidget;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +91,7 @@ class Timeline extends StatelessWidget {
           snapToMonth: snapToMonth,
           maxWidth: constraints.maxWidth,
           loadingWidget: loadingWidget,
+          onRefresh: onRefresh,
         ),
       ),
     );
@@ -118,6 +121,7 @@ class _SliverTimeline extends ConsumerStatefulWidget {
     this.snapToMonth = true,
     this.maxWidth,
     this.loadingWidget,
+    this.onRefresh,
   });
 
   final Widget? topSliverWidget;
@@ -130,6 +134,7 @@ class _SliverTimeline extends ConsumerStatefulWidget {
   final bool snapToMonth;
   final double? maxWidth;
   final Widget? loadingWidget;
+  final Future<void> Function()? onRefresh;
 
   @override
   ConsumerState createState() => _SliverTimelineState();
@@ -480,7 +485,10 @@ class _SliverTimelineState extends ConsumerState<_SliverTimeline> {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      timeline,
+                      if (widget.onRefresh != null)
+                        RefreshIndicator(onRefresh: widget.onRefresh!, child: timeline)
+                      else
+                        timeline,
                       if (isBottomWidgetVisible)
                         Positioned(
                           top: MediaQuery.paddingOf(context).top,

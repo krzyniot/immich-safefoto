@@ -19,6 +19,7 @@ typedef TimelineQuery = ({TimelineAssetSource assetSource, TimelineBucketSource 
 
 enum TimelineOrigin {
   main,
+  family,
   localAlbum,
   remoteAlbum,
   remoteAssets,
@@ -100,6 +101,30 @@ class TimelineService {
 
   int _totalAssets = 0;
   int get totalAssets => _totalAssets;
+
+  /// A server-authorized, in-memory timeline. It never reads the private
+  /// local asset database and is discarded when the family manifest changes.
+  factory TimelineService.fromAssetsWithBuckets(
+    List<BaseAsset> assets, {
+    required TimelineOrigin origin,
+    GroupAssetsBy groupBy = GroupAssetsBy.day,
+  }) {
+    final sorted = List<BaseAsset>.of(assets)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final buckets = <DateTime, int>{};
+    for (final asset in sorted) {
+      final date = asset.createdAt.toLocal();
+      final key = groupBy == GroupAssetsBy.month
+          ? DateTime(date.year, date.month)
+          : DateTime(date.year, date.month, date.day);
+      buckets[key] = (buckets[key] ?? 0) + 1;
+    }
+    return TimelineService((
+      bucketSource: () =>
+          Stream.value([for (final entry in buckets.entries) TimeBucket(date: entry.key, assetCount: entry.value)]),
+      assetSource: (offset, count) => Future.value(sorted.skip(offset).take(count).toList(growable: false)),
+      origin: origin,
+    ));
+  }
 
   TimelineService(TimelineQuery query)
     : this._(assetSource: query.assetSource, bucketSource: query.bucketSource, origin: query.origin);

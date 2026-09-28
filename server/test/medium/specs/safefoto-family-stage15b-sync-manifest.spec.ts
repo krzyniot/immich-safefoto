@@ -58,6 +58,12 @@ describe('SafeFoto family sync snapshot - Stage 15B', () => {
     expect(ownerManifest.assets.map(({ id }) => id)).toEqual([ownerPhoto.id, memberPhoto.id].sort());
     expect(ownerManifest.assets.find(({ id }) => id === ownerPhoto.id)).toMatchObject({
       fileCreatedAt: expect.any(String),
+      localDateTime: expect.any(String),
+      name: ownerPhoto.originalFileName,
+      width: ownerPhoto.width ?? null,
+      height: ownerPhoto.height ?? null,
+      isFavorite: ownerPhoto.isFavorite,
+      thumbHash: ownerPhoto.thumbhash?.toString('base64') ?? null,
       ownerId: owner.id,
       hideFromPersonalTimeline: true,
     });

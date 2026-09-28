@@ -23,6 +23,7 @@ import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart'
 import 'package:immich_mobile/providers/cast.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/current_album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
 import 'package:immich_mobile/utils/system_ui.utils.dart';
 import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 
@@ -48,6 +49,10 @@ class AssetViewerPage extends StatelessWidget {
     return ProviderScope(
       overrides: [
         timelineServiceProvider.overrideWithValue(timelineService),
+        // The family timeline may contain photos owned by another member.
+        // The generic viewer must never offer mutations on these photos.
+        if (timelineService.origin == TimelineOrigin.family)
+          readonlyModeProvider.overrideWith(() => _FamilyViewerReadOnly()),
         currentRemoteAlbumScopedProvider.overrideWithValue(currentAlbum),
       ],
       child: AssetViewer(initialIndex: initialIndex, heroOffset: heroOffset),
@@ -326,4 +331,15 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
       ),
     );
   }
+}
+
+class _FamilyViewerReadOnly extends ReadOnlyModeNotifier {
+  @override
+  bool build() => true;
+
+  @override
+  void setReadonlyMode(bool value) {}
+
+  @override
+  void toggleReadonlyMode() {}
 }
