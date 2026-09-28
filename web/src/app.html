@@ -29,16 +29,6 @@
       }
     </script>
 
-    <script>
-      (() => {
-        const setLoginBranding = (enabled) => {
-          document.documentElement.toggleAttribute('data-safefoto-login', enabled);
-        };
-        setLoginBranding(/^\/auth\/login\/?$/.test(globalThis.location.pathname));
-        globalThis.addEventListener('safefoto-login-branding', (event) => setLoginBranding(event.detail === true));
-      })();
-    </script>
-
     %sveltekit.head%
 
     <style>
@@ -68,21 +58,24 @@
         }
       }
 
-      @keyframes loadspin {
+      @keyframes safefotoPulse {
+        0%,
         100% {
-          transform: rotate(360deg);
+          opacity: 0.65;
+          transform: scale(0.96);
+        }
+
+        50% {
+          opacity: 1;
+          transform: scale(1);
         }
       }
 
-      html[data-safefoto-login] #stencil {
-        animation: 0s linear 0.3s forwards delayedVisibility;
-      }
-
-      html[data-safefoto-login] #stencil svg {
+      #stencil svg {
         display: none;
       }
 
-      html[data-safefoto-login] #stencil::before {
+      #stencil::before {
         content: '';
         width: var(--stencil-width);
         height: var(--stencil-width);
@@ -103,7 +96,7 @@
         visibility: hidden;
         animation:
           0s linear 0.3s forwards delayedVisibility,
-          loadspin 8s linear infinite;
+          safefotoPulse 1.6s ease-in-out 0.3s infinite;
       }
     </style>
     <link rel="stylesheet" href="/custom.css" />
