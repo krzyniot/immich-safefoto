@@ -48,6 +48,7 @@ import { AssetOcrAuditTable } from 'src/schema/tables/asset-ocr-audit.table';
 import { AssetOcrTable } from 'src/schema/tables/asset-ocr.table';
 import { AssetTable } from 'src/schema/tables/asset.table';
 import { FaceSearchTable } from 'src/schema/tables/face-search.table';
+import { FamilyAlbumTable } from 'src/schema/tables/family-album.table';
 import { FamilyAssetTable } from 'src/schema/tables/family-asset.table';
 import { GeodataPlacesTable } from 'src/schema/tables/geodata-places.table';
 import { HouseholdInvitationTable } from 'src/schema/tables/household-invitation.table';
@@ -119,6 +120,7 @@ export class ImmichDatabase {
     AssetExifTable,
     FaceSearchTable,
     FamilyAssetTable,
+    FamilyAlbumTable,
     GeodataPlacesTable,
     HouseholdTable,
     HouseholdInvitationTable,
@@ -226,6 +228,7 @@ export interface DB {
   face_search: FaceSearchTable;
 
   family_asset: FamilyAssetTable;
+  family_album: FamilyAlbumTable;
 
   geodata_places: GeodataPlacesTable;
 

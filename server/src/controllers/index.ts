@@ -10,6 +10,7 @@ import { DatabaseBackupController } from 'src/controllers/database-backup.contro
 import { DownloadController } from 'src/controllers/download.controller';
 import { DuplicateController } from 'src/controllers/duplicate.controller';
 import { FaceController } from 'src/controllers/face.controller';
+import { FamilyAlbumController } from 'src/controllers/family-album.controller';
 import { FamilyPhotoController } from 'src/controllers/family-photo.controller';
 import { HouseholdAdminController } from 'src/controllers/household-admin.controller';
 import { IntegrityAdminController } from 'src/controllers/integrity-admin.controller';
@@ -56,6 +57,7 @@ export const controllers = [
   DuplicateController,
   FaceController,
   FamilyPhotoController,
+  FamilyAlbumController,
   HouseholdAdminController,
   IntegrityAdminController,
   JobController,

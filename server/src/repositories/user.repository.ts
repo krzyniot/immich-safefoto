@@ -920,6 +920,13 @@ export class UserRepository {
       .execute();
 
     await tx
+      .deleteFrom('family_album')
+      .where('albumId', 'in', (eb) =>
+        eb.selectFrom('album_user').select('albumId').where('userId', '=', user.id).where('role', '=', AlbumUserRole.Owner),
+      )
+      .execute();
+
+    await tx
       .deleteFrom('family_asset')
       .where('assetId', 'in', (eb) => eb.selectFrom('asset').select('id').where('ownerId', '=', user.id))
       .execute();
