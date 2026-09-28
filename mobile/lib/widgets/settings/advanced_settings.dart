@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:auto_route/auto_route.dart';
+
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,9 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
+import 'package:immich_mobile/pages/common/settings.page.dart';
+import 'package:immich_mobile/routing/router.dart';
+import 'package:immich_mobile/widgets/common/immich_logo.dart';
 import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
 import 'package:immich_mobile/repositories/permission.repository.dart';
@@ -21,6 +26,7 @@ import 'package:immich_mobile/widgets/settings/settings_sub_page_scaffold.dart';
 import 'package:immich_mobile/widgets/settings/settings_switch_list_tile.dart';
 import 'package:immich_mobile/widgets/settings/ssl_client_cert_settings.dart';
 import 'package:logging/logging.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdvancedSettings extends HookConsumerWidget {
   const AdvancedSettings({super.key});
@@ -64,6 +70,21 @@ class AdvancedSettings extends HookConsumerWidget {
     }, []);
 
     final advancedSettings = [
+      ListTile(
+        leading: const Icon(Icons.wifi_outlined),
+        title: const Text('Połączenie z serwerem'),
+        onTap: () => context.pushRoute(SettingsSubRoute(section: SettingSection.networking)),
+      ),
+      ListTile(
+        leading: const Icon(Icons.sync_outlined),
+        title: const Text('Stan synchronizacji'),
+        onTap: () => context.pushRoute(const SyncStatusRoute()),
+      ),
+      ListTile(
+        leading: const Icon(Icons.assignment_outlined),
+        title: const Text('Dziennik aplikacji'),
+        onTap: () => context.pushRoute(const AppLogRoute()),
+      ),
       SettingsSwitchListTile(
         enabled: true,
         valueNotifier: advancedTroubleshooting,
@@ -169,6 +190,24 @@ class AdvancedSettings extends HookConsumerWidget {
             ),
           );
         },
+      ),
+      ListTile(
+        leading: const Icon(Icons.code_outlined),
+        title: const Text('Kod źródłowy'),
+        onTap: () =>
+            launchUrl(Uri.parse('https://github.com/krzyniot/immich-safefoto'), mode: LaunchMode.externalApplication),
+      ),
+      ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: const Text('Licencje'),
+        onTap: () => showLicensePage(
+          context: context,
+          applicationName: 'SafeFoto',
+          applicationIcon: const Padding(
+            padding: EdgeInsetsGeometry.symmetric(vertical: 10),
+            child: ImmichLogo(size: 40),
+          ),
+        ),
       ),
       const SizedBox(height: 60),
     ];

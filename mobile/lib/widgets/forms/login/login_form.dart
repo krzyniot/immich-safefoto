@@ -35,26 +35,14 @@ import 'package:immich_mobile/widgets/common/immich_title_text.dart';
 import 'package:immich_mobile/widgets/common/immich_toast.dart';
 import 'package:immich_ui/immich_ui.dart';
 import 'package:logging/logging.dart';
-import 'package:openapi/api.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
+const safefotoServerUrl = String.fromEnvironment('SAFEFOTO_SERVER_URL', defaultValue: 'https://login.safefoto.pl');
 
 class LoginForm extends HookConsumerWidget {
   LoginForm({super.key});
 
   final log = Logger('LoginForm');
-
-  String? _validateUrl(String? url) {
-    if (url == null || url.isEmpty) {
-      return null;
-    }
-
-    final parsedUrl = Uri.tryParse(url);
-    if (parsedUrl == null || !parsedUrl.isAbsolute || !parsedUrl.scheme.startsWith("http") || parsedUrl.host.isEmpty) {
-      return 'login_form_err_invalid_url'.tr();
-    }
-
-    return null;
-  }
 
   String? _validateEmail(String? email) {
     if (email == null || email == '') {
@@ -83,6 +71,8 @@ class LoginForm extends HookConsumerWidget {
     final oAuthButtonLabel = useState<String>('OAuth');
     final serverInfo = ref.watch(serverInfoProvider);
     final warningMessage = useState<String?>(null);
+    final isConnecting = useState(true);
+    final connectionFailed = useState(false);
     final loginFormKey = GlobalKey<FormState>();
     final ValueNotifier<String?> serverEndpoint = useState<String?>(null);
 
@@ -91,22 +81,22 @@ class LoginForm extends HookConsumerWidget {
         final packageInfo = await PackageInfo.fromPlatform();
         final appSemVer = SemVer.fromString(packageInfo.version);
         final serverSemVer = serverInfo.serverVersion;
-        warningMessage.value = getVersionCompatibilityMessage(serverVersion: serverSemVer, appVersion: appSemVer);
+        warningMessage.value =
+            getVersionCompatibilityMessage(serverVersion: serverSemVer, appVersion: appSemVer) == null
+            ? null
+            : 'Ta wersja aplikacji wymaga aktualizacji. Skontaktuj się z obsługą SafeFoto.';
       } catch (error) {
-        warningMessage.value = 'Error checking version compatibility';
+        warningMessage.value = 'Nie udało się sprawdzić zgodności aplikacji.';
       }
     }
 
     /// Fetch the server login credential and enables oAuth login if necessary
     /// Returns true if successful, false otherwise
     Future<void> getServerAuthSettings() async {
+      isConnecting.value = true;
+      connectionFailed.value = false;
       final sanitizeServerUrl = sanitizeUrl(serverEndpointController.text);
       final serverUrl = punycodeEncodeUrl(sanitizeServerUrl);
-
-      // Guard empty URL
-      if (serverUrl.isEmpty) {
-        ImmichToast.show(context: context, msg: "login_form_server_empty".tr(), toastType: ToastType.error);
-      }
 
       try {
         final endpoint = await ref.read(authProvider.notifier).validateServerUrl(serverUrl);
@@ -123,55 +113,24 @@ class LoginForm extends HookConsumerWidget {
         oAuthButtonLabel.value = config.oauthButtonText.isNotEmpty ? config.oauthButtonText : 'OAuth';
 
         serverEndpoint.value = endpoint;
-      } on ApiException catch (e) {
-        ImmichToast.show(
-          context: context,
-          msg: e.message ?? 'login_form_api_exception'.tr(),
-          toastType: ToastType.error,
-          gravity: ToastGravity.TOP,
-        );
+        isConnecting.value = false;
+      } catch (error, stack) {
+        log.warning('Cannot connect to SafeFoto: $error', error, stack);
         isOauthEnable.value = false;
-        isPasswordLoginEnable.value = true;
-      } on HandshakeException {
-        ImmichToast.show(
-          context: context,
-          msg: 'login_form_handshake_exception'.tr(),
-          toastType: ToastType.error,
-          gravity: ToastGravity.TOP,
-        );
-        isOauthEnable.value = false;
-        isPasswordLoginEnable.value = true;
-      } catch (e) {
-        ImmichToast.show(
-          context: context,
-          msg: 'login_form_server_error'.tr(),
-          toastType: ToastType.error,
-          gravity: ToastGravity.TOP,
-        );
-        isOauthEnable.value = false;
-        isPasswordLoginEnable.value = true;
+        connectionFailed.value = true;
+        isConnecting.value = false;
       }
     }
 
     useEffect(() {
-      final serverUrl = getServerUrl();
-      if (serverUrl != null) {
-        serverEndpointController.text = serverUrl;
-      }
+      serverEndpointController.text = safefotoServerUrl;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          getServerAuthSettings();
+        }
+      });
       return null;
     }, []);
-
-    populateTestLoginInfo() {
-      emailController.text = 'demo@immich.app';
-      passwordController.text = 'demo';
-      serverEndpointController.text = 'https://demo.immich.app';
-    }
-
-    populateTestLoginInfo1() {
-      emailController.text = 'testuser@email.com';
-      passwordController.text = 'password';
-      serverEndpointController.text = 'http://10.1.15.216:2283/api';
-    }
 
     Future<void> handleSyncFlow() async {
       final backgroundManager = ref.read(backgroundSyncProvider);
@@ -402,27 +361,17 @@ class LoginForm extends HookConsumerWidget {
         ? Padding(
             padding: const EdgeInsets.only(top: ImmichSpacing.md),
             child: Column(
-              mainAxisSize: MainAxisSize.max,
               children: [
-                ImmichForm(
-                  onSubmit: getServerAuthSettings,
-                  submitText: 'next'.t(context: context),
-                  submitIcon: Icons.arrow_forward_rounded,
-                  builder: (_, form) => ImmichURLInput(
-                    controller: serverEndpointController,
-                    label: 'login_form_endpoint_url'.t(context: context),
-                    hintText: 'login_form_endpoint_hint'.t(context: context),
-                    validator: _validateUrl,
-                    keyboardAction: .next,
-                    onSubmit: (_) => form.submit(),
-                  ),
-                ),
-                ImmichTextButton(
-                  labelText: 'settings'.t(context: context),
-                  icon: Icons.settings,
-                  variant: ImmichVariant.ghost,
-                  onPressed: () => context.pushRoute(const SettingsRoute()),
-                ),
+                if (isConnecting.value) ...[
+                  const CircularProgressIndicator.adaptive(),
+                  const SizedBox(height: 16),
+                  const Text('Łączenie z SafeFoto…'),
+                ],
+                if (connectionFailed.value) ...[
+                  const Text('Nie można połączyć się z SafeFoto.'),
+                  const SizedBox(height: 16),
+                  FilledButton(onPressed: getServerAuthSettings, child: const Text('Spróbuj ponownie')),
+                ],
               ],
             ),
           )
@@ -432,14 +381,6 @@ class LoginForm extends HookConsumerWidget {
               mainAxisSize: MainAxisSize.max,
               children: [
                 buildVersionCompatWarning(),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: ImmichSpacing.md),
-                  child: Text(
-                    sanitizeUrl(serverEndpointController.text),
-                    style: context.textTheme.displaySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
                 if (isPasswordLoginEnable.value)
                   ImmichForm(
                     onSubmit: login,
@@ -483,12 +424,6 @@ class LoginForm extends HookConsumerWidget {
                   ),
                 if (!isOauthEnable.value && !isPasswordLoginEnable.value)
                   Center(child: const Text('login_disabled').tr()),
-                ImmichTextButton(
-                  labelText: 'back'.t(context: context),
-                  icon: Icons.arrow_back,
-                  variant: ImmichVariant.ghost,
-                  onPressed: () => serverEndpoint.value = null,
-                ),
               ],
             ),
           );
@@ -504,16 +439,12 @@ class LoginForm extends HookConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(height: constraints.maxHeight / 5),
-                  Column(
+                  const Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      GestureDetector(
-                        onDoubleTap: () => populateTestLoginInfo(),
-                        onLongPress: () => populateTestLoginInfo1(),
-                        child: const ImmichLogo(heroTag: 'logo'),
-                      ),
-                      const Padding(padding: EdgeInsets.only(top: 8.0, bottom: 16), child: ImmichTitleText()),
+                      ImmichLogo(heroTag: 'logo'),
+                      Padding(padding: EdgeInsets.only(top: 8.0, bottom: 16), child: ImmichTitleText()),
                     ],
                   ),
 

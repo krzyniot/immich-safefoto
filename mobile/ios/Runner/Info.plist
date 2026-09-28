@@ -129,24 +129,23 @@
       <string>_CC1AD845._googlecast._tcp</string>
     </array>
     <key>NSCameraUsageDescription</key>
-    <string>We need to access the camera to let you take beautiful video using this app</string>
+    <string>SafeFoto potrzebuje dostępu do aparatu, aby robić zdjęcia i nagrywać filmy.</string>
     <key>NSFaceIDUsageDescription</key>
-    <string>We need to use FaceID to allow access to your locked folder</string>
+    <string>SafeFoto używa Face ID do ochrony prywatnych zdjęć.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>We need local network permission to connect to the local server using IP address and
-      allow the casting feature to work</string>
+    <string>SafeFoto używa sieci lokalnej do połączenia z galerią i wyświetlania zdjęć na telewizorze.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>We require this permission to access the local WiFi name for background upload mechanism</string>
+    <string>SafeFoto potrzebuje rozpoznać sieć Wi-Fi, aby przesyłać zdjęcia w tle.</string>
     <key>NSLocationUsageDescription</key>
-    <string>We require this permission to access the local WiFi name</string>
+    <string>SafeFoto potrzebuje rozpoznać sieć Wi-Fi podczas przesyłania zdjęć.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>We require this permission to access the local WiFi name</string>
+    <string>SafeFoto potrzebuje rozpoznać sieć Wi-Fi podczas przesyłania zdjęć.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>We need to access the microphone to let you take beautiful video using this app</string>
+    <string>SafeFoto potrzebuje dostępu do mikrofonu podczas nagrywania filmów.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>We need to manage backup your photos album</string>
+    <string>SafeFoto potrzebuje dostępu do zdjęć, aby je wyświetlać i tworzyć ich kopię.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>We need to manage backup your photos album</string>
+    <string>SafeFoto potrzebuje dostępu do zdjęć, aby je wyświetlać i tworzyć ich kopię.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>INSendMessageIntent</string>

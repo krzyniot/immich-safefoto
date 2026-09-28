@@ -10,6 +10,13 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(':app')
+    if (project.name == 'home_widget') {
+        project.afterEvaluate {
+            project.android.compileOptions.sourceCompatibility = JavaVersion.VERSION_11
+            project.android.compileOptions.targetCompatibility = JavaVersion.VERSION_11
+            project.android.kotlinOptions.jvmTarget = '11'
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

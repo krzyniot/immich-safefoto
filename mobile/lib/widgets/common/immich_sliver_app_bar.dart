@@ -6,12 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
-import 'package:immich_mobile/models/server_info/server_info.model.dart';
 import 'package:immich_mobile/providers/backup/drift_backup.provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
-import 'package:immich_mobile/providers/server_info.provider.dart';
 import 'package:immich_mobile/providers/sync_status.provider.dart';
 import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
@@ -104,8 +102,6 @@ class _ProfileIndicator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final bool versionWarningPresent = ref.watch(versionWarningPresentProvider(user));
-    final serverInfoState = ref.watch(serverInfoProvider);
 
     const widgetSize = 32.0;
 
@@ -135,37 +131,21 @@ class _ProfileIndicator extends ConsumerWidget {
         builder: (ctx) => const ImmichAppBarDialog(),
       ),
       onLongPress: () => toggleReadonlyMode(),
-      icon: Badge(
-        label: _BadgeLabel(
-          Icon(
-            Icons.info,
-            color: serverInfoState.versionStatus == VersionStatus.error
-                ? context.colorScheme.error
-                : context.primaryColor,
-            size: widgetSize / 2 - 3,
-            semanticLabel: 'new_version_available'.tr(),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        alignment: Alignment.bottomRight,
-        isLabelVisible: versionWarningPresent,
-        offset: const Offset(-2, -12),
-        child: user == null
-            ? const Icon(Icons.face_outlined, size: widgetSize)
-            : Semantics(
-                label: "logged_in_as".tr(namedArgs: {"user": user.name}),
-                child: AbsorbPointer(
-                  child: Builder(
-                    builder: (context) => UserCircleAvatar(
-                      size: 34,
-                      user: user,
-                      opacity: IconTheme.of(context).opacity ?? 1,
-                      hasBorder: true,
-                    ),
+      icon: user == null
+          ? const Icon(Icons.face_outlined, size: widgetSize)
+          : Semantics(
+              label: "logged_in_as".tr(namedArgs: {"user": user.name}),
+              child: AbsorbPointer(
+                child: Builder(
+                  builder: (context) => UserCircleAvatar(
+                    size: 34,
+                    user: user,
+                    opacity: IconTheme.of(context).opacity ?? 1,
+                    hasBorder: true,
                   ),
                 ),
               ),
-      ),
+            ),
     );
   }
 }

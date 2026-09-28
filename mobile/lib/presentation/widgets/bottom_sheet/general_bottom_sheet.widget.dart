@@ -15,7 +15,6 @@ import 'package:immich_mobile/presentation/widgets/action_buttons/download_actio
 import 'package:immich_mobile/presentation/widgets/action_buttons/edit_date_time_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/edit_location_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/favorite_action_button.widget.dart';
-import 'package:immich_mobile/presentation/widgets/action_buttons/move_to_lock_folder_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/share_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/share_link_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/stack_action_button.widget.dart';
@@ -106,7 +105,6 @@ class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
           if (tagsEnabled) const BulkTagAssetsActionButton(source: ActionSource.timeline),
           const EditDateTimeActionButton(source: ActionSource.timeline),
           const EditLocationActionButton(source: ActionSource.timeline),
-          const MoveToLockFolderActionButton(source: ActionSource.timeline),
           if (multiselect.selectedAssets.length > 1) const StackActionButton(source: ActionSource.timeline),
           if (multiselect.hasStacked) const UnStackActionButton(source: ActionSource.timeline),
           if (multiselect.onlyLocal || multiselect.hasMerged) const DeleteActionButton(source: ActionSource.timeline),

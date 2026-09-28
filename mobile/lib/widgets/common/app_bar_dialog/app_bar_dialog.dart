@@ -17,12 +17,8 @@ import 'package:immich_mobile/providers/websocket.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/utils/bytes_units.dart';
 import 'package:immich_mobile/widgets/common/app_bar_dialog/app_bar_profile_info.dart';
-import 'package:immich_mobile/widgets/common/app_bar_dialog/app_bar_server_info.dart';
 import 'package:immich_mobile/widgets/common/confirm_dialog.dart';
-import 'package:immich_mobile/widgets/common/immich_logo.dart';
 import 'package:immich_mobile/widgets/common/immich_title_text.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ImmichAppBarDialog extends HookConsumerWidget {
   const ImmichAppBarDialog({super.key});
@@ -85,14 +81,6 @@ class ImmichAppBarDialog extends HookConsumerWidget {
         Icons.cleaning_services_outlined,
         "free_up_space",
         () => context.pushRoute(SettingsSubRoute(section: SettingSection.freeUpSpace)),
-      );
-    }
-
-    buildAppLogButton() {
-      return buildActionButton(
-        Icons.assignment_outlined,
-        "profile_drawer_app_logs",
-        () => context.pushRoute(const AppLogRoute()),
       );
     }
 
@@ -163,48 +151,6 @@ class ImmichAppBarDialog extends HookConsumerWidget {
       );
     }
 
-    buildFooter() {
-      return Padding(
-        padding: const EdgeInsets.only(top: 10, bottom: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            InkWell(
-              onTap: () {
-                ContextHelper(context).pop();
-                launchUrl(Uri.parse('https://docs.immich.app'), mode: LaunchMode.externalApplication);
-              },
-              child: Text("documentation", style: context.textTheme.bodySmall).tr(),
-            ),
-            const SizedBox(width: 20, child: Text("•", textAlign: TextAlign.center)),
-            InkWell(
-              onTap: () {
-                ContextHelper(context).pop();
-                launchUrl(Uri.parse('https://github.com/immich-app/immich'), mode: LaunchMode.externalApplication);
-              },
-              child: Text("profile_drawer_github", style: context.textTheme.bodySmall).tr(),
-            ),
-            const SizedBox(width: 20, child: Text("•", textAlign: TextAlign.center)),
-            InkWell(
-              onTap: () async {
-                ContextHelper(context).pop();
-                final packageInfo = await PackageInfo.fromPlatform();
-                showLicensePage(
-                  context: context,
-                  applicationIcon: const Padding(
-                    padding: EdgeInsetsGeometry.symmetric(vertical: 10),
-                    child: ImmichLogo(size: 40),
-                  ),
-                  applicationVersion: packageInfo.version,
-                );
-              },
-              child: Text("licenses", style: context.textTheme.bodySmall).tr(),
-            ),
-          ],
-        ),
-      );
-    }
-
     buildReadonlyMessage() {
       return Padding(
         padding: const EdgeInsets.only(left: 10.0, right: 10.0),
@@ -256,17 +202,13 @@ class ImmichAppBarDialog extends HookConsumerWidget {
                       const AppBarProfileInfoBox(),
                       Divider(thickness: 4, color: context.colorScheme.surfaceContainer),
                       buildStorageInformation(),
-                      Divider(thickness: 4, color: context.colorScheme.surfaceContainer),
-                      const AppBarServerInfo(),
                     ],
                   ),
                 ),
                 if (isReadonlyModeEnabled) buildReadonlyMessage(),
-                buildAppLogButton(),
                 buildFreeUpSpaceButton(),
                 buildSettingButton(),
                 buildSignOutButton(),
-                buildFooter(),
               ],
             ),
           ),

@@ -131,10 +131,7 @@ enum ActionButtonType {
         context.isOwner && //
             !context.isInLockedView && //
             context.asset.hasRemote,
-      ActionButtonType.moveToLockFolder =>
-        context.isOwner && //
-            !context.isInLockedView && //
-            context.asset.hasRemote,
+      ActionButtonType.moveToLockFolder => false,
       ActionButtonType.removeFromLockFolder =>
         context.isOwner && //
             context.isInLockedView && //
@@ -317,7 +314,6 @@ class ActionButtonBuilder {
   static const List<ActionButtonType> defaultViewerKebabMenuOrder = _actionTypes;
   static const Set<ActionButtonType> defaultViewerBottomBarButtons = {
     ActionButtonType.share,
-    ActionButtonType.moveToLockFolder,
     ActionButtonType.upload,
     ActionButtonType.delete,
     ActionButtonType.archive,

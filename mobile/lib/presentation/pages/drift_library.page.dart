@@ -386,14 +386,6 @@ class _QuickAccessButtonList extends ConsumerWidget {
                 onTap: () => context.pushRoute(FolderRoute()),
               ),
               ListTile(
-                leading: const Icon(Icons.lock_outline_rounded, size: 26),
-                title: Text(
-                  'locked_folder'.t(context: context),
-                  style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500),
-                ),
-                onTap: () => context.pushRoute(const DriftLockedFolderRoute()),
-              ),
-              ListTile(
                 leading: const Icon(Icons.group_outlined, size: 26),
                 title: Text(
                   'partners'.t(context: context),

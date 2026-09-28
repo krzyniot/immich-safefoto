@@ -48,7 +48,7 @@ class BootstrapErrorWidget extends StatelessWidget {
       child: Builder(
         builder: (lCtx) => MaterialApp(
           title: 'SafeFoto',
-          debugShowCheckedModeBanner: true,
+          debugShowCheckedModeBanner: false,
           localizationsDelegates: lCtx.localizationDelegates,
           supportedLocales: lCtx.supportedLocales,
           locale: lCtx.locale,

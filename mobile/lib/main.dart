@@ -262,7 +262,7 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
       overrides: [localeProvider.overrideWithValue(context.locale)],
       child: MaterialApp.router(
         title: 'SafeFoto',
-        debugShowCheckedModeBanner: true,
+        debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: scaffoldMessengerKey,
         localizationsDelegates: context.localizationDelegates,
         supportedLocales: context.supportedLocales,

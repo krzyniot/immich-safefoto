@@ -95,12 +95,6 @@ class _AddActionButtonState extends ConsumerState<AddActionButton> {
             menuItem: true,
             onPressed: () => _handleMenuSelection(AddToMenuItem.unarchive),
           ),
-        BaseActionButton(
-          iconData: Icons.lock_outline,
-          label: "locked_folder".tr(),
-          menuItem: true,
-          onPressed: () => _handleMenuSelection(AddToMenuItem.lockedFolder),
-        ),
       ],
     ];
   }
