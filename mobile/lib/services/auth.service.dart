@@ -129,6 +129,7 @@ class AuthService {
         await Store.delete(StoreKey.currentUser);
         await Store.delete(StoreKey.accessToken);
         await Store.delete(StoreKey.familySyncManifestJson);
+        await Store.delete(StoreKey.familyPrivateHiddenJson);
       }(),
       SettingsRepository.instance.write(SettingsKey.backupEnabled, false),
       SettingsRepository.instance.clear(const [

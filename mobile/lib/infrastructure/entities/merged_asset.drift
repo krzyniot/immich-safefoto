@@ -33,10 +33,19 @@ FROM
 	remote_asset_entity rae
 LEFT JOIN
 	stack_entity se ON rae.stack_id = se.id
+LEFT JOIN store_entity sf ON sf.id = 1015
 WHERE
 	rae.deleted_at IS NULL
 	AND rae.visibility = 0 -- timeline visibility
 	AND rae.owner_id IN :user_ids
+	AND NOT EXISTS (
+		SELECT 1 FROM json_each(json_extract(sf.string_value, '$.hiddenIds')) hidden
+		WHERE sf.id = 1015
+			AND json_valid(sf.string_value)
+			AND json_extract(sf.string_value, '$.userId') = (SELECT string_value FROM store_entity WHERE id = 2)
+			AND json_extract(sf.string_value, '$.serverEndpoint') = (SELECT string_value FROM store_entity WHERE id = 12)
+			AND hidden.value = rae.id
+	)
 	AND (
 		rae.stack_id IS NULL
 		OR rae.id = se.primary_asset_id
@@ -107,10 +116,19 @@ FROM
 		remote_asset_entity rae
 	LEFT JOIN
         stack_entity se ON rae.stack_id = se.id
+	LEFT JOIN store_entity sf ON sf.id = 1015
 	WHERE
 		rae.deleted_at IS NULL
 		AND rae.visibility = 0 -- timeline visibility
 		AND rae.owner_id in :user_ids
+		AND NOT EXISTS (
+			SELECT 1 FROM json_each(json_extract(sf.string_value, '$.hiddenIds')) hidden
+			WHERE sf.id = 1015
+				AND json_valid(sf.string_value)
+				AND json_extract(sf.string_value, '$.userId') = (SELECT string_value FROM store_entity WHERE id = 2)
+				AND json_extract(sf.string_value, '$.serverEndpoint') = (SELECT string_value FROM store_entity WHERE id = 12)
+				AND hidden.value = rae.id
+		)
 		AND (
 			rae.stack_id IS NULL
 			OR rae.id = se.primary_asset_id

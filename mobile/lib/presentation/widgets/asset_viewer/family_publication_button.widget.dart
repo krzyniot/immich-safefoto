@@ -43,6 +43,7 @@ class _FamilyPublicationButtonState extends ConsumerState<FamilyPublicationButto
       }
       // Revocation must invalidate the old cached authorization before the
       // gallery is allowed to re-render, including during a network outage.
+      await ref.read(familyPrivateVisibilityProvider).update(widget.asset.id, mode, identity);
       await ref.read(familySyncCacheServiceProvider).invalidate();
       if (!mounted || currentFamilySyncIdentity(store) != identity) {
         return;

@@ -12,6 +12,7 @@ import 'package:immich_mobile/domain/models/config/app_config.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
+import 'package:immich_mobile/domain/services/family_private_visibility.service.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/presentation/pages/family_gallery.page.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
@@ -107,6 +108,7 @@ void main() {
           storeServiceProvider.overrideWithValue(store),
           userServiceProvider.overrideWithValue(users),
           familySyncCacheServiceProvider.overrideWithValue(service),
+          familyPrivateVisibilityProvider.overrideWithValue(FamilyPrivateVisibilityService(store, db: db)),
           appConfigProvider.overrideWithValue(const AppConfig()),
         ],
         child: EasyLocalization(

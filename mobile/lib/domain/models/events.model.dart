@@ -20,6 +20,15 @@ class FamilyPublicationChangedEvent extends Event {
   const FamilyPublicationChangedEvent();
 }
 
+/// Reconcile visibility whenever the user switches between the two galleries.
+class PrivateGalleryOpenedEvent extends Event {
+  const PrivateGalleryOpenedEvent();
+}
+
+class FamilyGalleryOpenedEvent extends Event {
+  const FamilyGalleryOpenedEvent();
+}
+
 // Asset Viewer Events
 class ViewerShowDetailsEvent extends Event {
   const ViewerShowDetailsEvent();

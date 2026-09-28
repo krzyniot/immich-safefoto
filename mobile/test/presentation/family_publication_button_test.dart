@@ -11,6 +11,7 @@ import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
+import 'package:immich_mobile/domain/services/family_private_visibility.service.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
 import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
@@ -92,6 +93,7 @@ void main() {
       ProviderScope(
         overrides: [
           storeServiceProvider.overrideWithValue(store),
+          familyPrivateVisibilityProvider.overrideWithValue(FamilyPrivateVisibilityService(store, db: db)),
           familySyncCacheServiceProvider.overrideWithValue(service),
           familySyncApiRepositoryProvider.overrideWithValue(
             FamilySyncApiRepository(apiBasePath: 'http://test/api', client: client),
@@ -140,6 +142,7 @@ void main() {
     expect(requests, 1);
     expect(lastMode, 'move');
     expect(cache.data, isNull);
+    expect(store.tryGet(StoreKey.familyPrivateHiddenJson), contains(photo(UserStub.admin.id).id));
   });
 
   testWidgets('another member cannot publish someone else’s image even if button is invoked directly', (tester) async {

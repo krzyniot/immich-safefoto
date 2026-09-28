@@ -41,6 +41,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
   StreamSubscription? _userSubscription;
   StreamSubscription? _tokenSubscription;
   StreamSubscription? _publicationSubscription;
+  StreamSubscription? _openedSubscription;
   String? _lastObservedToken;
   TimelineService? _familyTimeline;
   FamilySyncManifest? _timelineManifest;
@@ -63,6 +64,11 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
       _lastObservedToken = token;
       if (changed || token == null) {
         _clearVisibleFamily();
+      }
+    });
+    _openedSubscription = EventStream.shared.listen<FamilyGalleryOpenedEvent>((_) {
+      if (mounted) {
+        _loadAndRefresh();
       }
     });
     _publicationSubscription = EventStream.shared.listen<FamilyPublicationChangedEvent>((_) {
@@ -112,6 +118,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     _userSubscription?.cancel();
     _tokenSubscription?.cancel();
     _publicationSubscription?.cancel();
+    _openedSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _dropTimeline();
     super.dispose();
@@ -167,6 +174,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         });
       }
       final result = await service.refresh();
+      await ref.read(familyPrivateVisibilityProvider).reconcile(result.manifest, identity);
       if (!mounted || generation != _requestGeneration) {
         return;
       }
@@ -234,7 +242,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
 
     if (manifest == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Zdjęcia rodziny')),
+        appBar: AppBar(automaticallyImplyLeading: false, title: const Text('Zdjęcia rodziny')),
         body: Center(
           child: _loading
               ? const CircularProgressIndicator()
@@ -264,6 +272,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         onRefresh: _loadAndRefresh,
         appBar: SliverAppBar(
           floating: true,
+          automaticallyImplyLeading: false,
           title: const Text('Zdjęcia rodziny'),
           actions: [
             if (_refreshing)
