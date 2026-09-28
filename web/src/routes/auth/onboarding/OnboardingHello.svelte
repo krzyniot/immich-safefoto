@@ -1,23 +1,18 @@
 <script lang="ts">
   import { authManager } from '$lib/managers/auth-manager.svelte';
-  import { serverConfigManager } from '$lib/managers/server-config-manager.svelte';
-  import { OnboardingRole } from '$lib/types';
-  import { Logo } from '@immich/ui';
-  import { t } from 'svelte-i18n';
-
-  let userRole = $derived(
-    authManager.user.isAdmin && !serverConfigManager.value.isOnboarded ? OnboardingRole.SERVER : OnboardingRole.USER,
-  );
 </script>
 
-<div class="gap-4">
-  <Logo variant="icon" size="giant" class="mb-2" />
-  <p class="mb-6 text-6xl font-medium text-primary">
-    {$t('onboarding_welcome_user', { values: { user: authManager.user.name } })}
-  </p>
-  <p class="pb-6 text-3xl font-light">
-    {userRole == OnboardingRole.SERVER
-      ? $t('onboarding_server_welcome_description')
-      : $t('onboarding_user_welcome_description')}
+<div class="flex flex-col items-center gap-4 py-4 text-center">
+  <img
+    src="/safefoto/logo.png"
+    alt="Logo SafeFoto"
+    width="112"
+    height="112"
+    class="size-28 object-contain"
+  />
+  <p class="text-4xl font-normal text-primary">SafeFoto</p>
+  <p class="text-3xl font-normal">Witaj, {authManager.user.name}</p>
+  <p class="max-w-2xl pb-4 text-xl font-normal text-gray-600 dark:text-gray-300">
+    Twoje konto jest gotowe. Możesz już bezpiecznie przechowywać swoje zdjęcia i filmy.
   </p>
 </div>
