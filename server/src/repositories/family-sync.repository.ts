@@ -32,7 +32,13 @@ export class FamilySyncRepository {
           .selectFrom('family_asset')
           .innerJoin('asset', 'asset.id', 'family_asset.assetId')
           .innerJoin('user as owner', 'owner.id', 'asset.ownerId')
-          .select(['asset.id', 'asset.ownerId', 'family_asset.hideFromPersonalTimeline', 'family_asset.updatedAt'])
+          .select([
+            'asset.id',
+            'asset.ownerId',
+            'asset.fileCreatedAt',
+            'family_asset.hideFromPersonalTimeline',
+            'family_asset.updatedAt',
+          ])
           .where('family_asset.householdId', '=', householdId)
           .where('owner.householdId', '=', householdId)
           .where('owner.deletedAt', 'is', null)
@@ -109,7 +115,11 @@ export class FamilySyncRepository {
           version: 1 as const,
           householdId,
           generatedAt: new Date().toISOString(),
-          assets: assets.map((asset) => ({ ...asset, updatedAt: asset.updatedAt.toISOString() })),
+          assets: assets.map((asset) => ({
+            ...asset,
+            fileCreatedAt: asset.fileCreatedAt.toISOString(),
+            updatedAt: asset.updatedAt.toISOString(),
+          })),
           albums: albums.map((album) => ({ ...album, updatedAt: album.updatedAt.toISOString() })),
           albumAssets,
         };

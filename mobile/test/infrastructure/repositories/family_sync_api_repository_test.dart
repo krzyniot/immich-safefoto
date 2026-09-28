@@ -33,6 +33,44 @@ void main() {
     client.close();
   });
 
+  test('reads custom headers at request time instead of retaining old account headers', () async {
+    var token = 'old';
+    final seen = <String>[];
+    final client = MockClient((request) async {
+      seen.add(request.headers['X-Test-Auth']!);
+      return http.Response(jsonEncode(payload()), 200);
+    });
+    final repository = FamilySyncApiRepository(
+      apiBasePath: 'http://test.local/api',
+      client: client,
+      headersProvider: () => {'X-Test-Auth': token},
+    );
+    await repository.fetchManifest();
+    token = 'new';
+    await repository.fetchManifest();
+    expect(seen, ['old', 'new']);
+    client.close();
+  });
+
+  test('uses the current server endpoint after an authorized server switch', () async {
+    var endpoint = 'https://first.example/api';
+    final seen = <String>[];
+    final client = MockClient((request) async {
+      seen.add(request.url.host);
+      return http.Response(jsonEncode(payload()), 200);
+    });
+    final repository = FamilySyncApiRepository(
+      apiBasePath: endpoint,
+      apiBasePathProvider: () => endpoint,
+      client: client,
+    );
+    await repository.fetchManifest();
+    endpoint = 'https://second.example/api';
+    await repository.fetchManifest();
+    expect(seen, ['first.example', 'second.example']);
+    client.close();
+  });
+
   test('failed HTTP request throws and cannot produce an empty eviction manifest', () async {
     final client = MockClient((_) async => http.Response('Unavailable', 503));
     final repository = FamilySyncApiRepository(apiBasePath: 'http://test.local/api', client: client);

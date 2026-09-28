@@ -6,18 +6,21 @@ class FamilySyncAsset {
   const FamilySyncAsset({
     required this.id,
     required this.ownerId,
+    required this.fileCreatedAt,
     required this.hideFromPersonalTimeline,
     required this.updatedAt,
   });
 
   final String id;
   final String ownerId;
+  final DateTime fileCreatedAt;
   final bool hideFromPersonalTimeline;
   final DateTime updatedAt;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'ownerId': ownerId,
+    'fileCreatedAt': fileCreatedAt.toUtc().toIso8601String(),
     'hideFromPersonalTimeline': hideFromPersonalTimeline,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
   };
@@ -25,6 +28,8 @@ class FamilySyncAsset {
   factory FamilySyncAsset.fromJson(Map<String, dynamic> data) => FamilySyncAsset(
     id: _requiredString(data, 'id'),
     ownerId: _requiredString(data, 'ownerId'),
+    // Older v1 snapshots did not include capture time.
+    fileCreatedAt: DateTime.parse(_requiredString(data, data['fileCreatedAt'] == null ? 'updatedAt' : 'fileCreatedAt')),
     hideFromPersonalTimeline: _requiredBool(data, 'hideFromPersonalTimeline'),
     updatedAt: DateTime.parse(_requiredString(data, 'updatedAt')),
   );

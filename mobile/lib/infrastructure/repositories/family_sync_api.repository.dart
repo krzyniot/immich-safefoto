@@ -16,22 +16,34 @@ class FamilySyncFetchException implements Exception {
 /// The native HTTP client already carries the session authentication configured
 /// by ApiService. Tests may inject an isolated mock HTTP client.
 class FamilySyncApiRepository {
-  const FamilySyncApiRepository({required this.apiBasePath, required this.client, this.headers = const {}});
+  const FamilySyncApiRepository({
+    required this.apiBasePath,
+    required this.client,
+    this.headers = const {},
+    this.headersProvider,
+    this.apiBasePathProvider,
+  });
 
   factory FamilySyncApiRepository.fromApiService(ApiService api) => FamilySyncApiRepository(
     apiBasePath: api.apiClient.basePath,
     client: NetworkRepository.client,
-    headers: ApiService.getRequestHeaders(),
+    headersProvider: ApiService.getRequestHeaders,
+    apiBasePathProvider: () => api.apiClient.basePath,
   );
 
   final String apiBasePath;
   final http.Client client;
   final Map<String, String> headers;
+  final Map<String, String> Function()? headersProvider;
+  final String Function()? apiBasePathProvider;
 
   Future<FamilySyncManifest> fetchManifest() async {
-    final basePath = apiBasePath.replaceFirst(RegExp(r'/$'), '');
+    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(RegExp(r'/$'), '');
     final response = await client
-        .get(Uri.parse('$basePath/family/sync/manifest'), headers: {'Accept': 'application/json', ...headers})
+        .get(
+          Uri.parse('$basePath/family/sync/manifest'),
+          headers: {'Accept': 'application/json', ...headers, ...?headersProvider?.call()},
+        )
         .timeout(const Duration(seconds: 60));
 
     if (response.statusCode != 200) {

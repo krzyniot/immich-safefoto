@@ -1223,6 +1223,22 @@ class DriftVideoRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [FamilyGalleryPage]
+class FamilyGalleryRoute extends PageRouteInfo<void> {
+  const FamilyGalleryRoute({List<PageRouteInfo>? children})
+    : super(FamilyGalleryRoute.name, initialChildren: children);
+
+  static const String name = 'FamilyGalleryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const FamilyGalleryPage();
+    },
+  );
+}
+
+/// generated route for
 /// [FolderPage]
 class FolderRoute extends PageRouteInfo<FolderRouteArgs> {
   FolderRoute({

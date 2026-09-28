@@ -5,6 +5,7 @@ import z from 'zod';
 const FamilySyncAsset = z.object({
   id: z.uuidv4(),
   ownerId: z.uuidv4(),
+  fileCreatedAt: z.string().meta({ format: 'date-time' }),
   hideFromPersonalTimeline: z.boolean(),
   updatedAt: z.string().meta({ format: 'date-time' }),
 });
