@@ -103,18 +103,43 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
         extended: _railExpanded,
         minWidth: 64,
         minExtendedWidth: 210,
-        leading: IconButton(
-          key: const ValueKey('safefoto_navigation_toggle'),
-          tooltip: _railExpanded ? 'Zwiń menu' : 'Rozwiń menu',
-          icon: Icon(_railExpanded ? Icons.menu_open_rounded : Icons.menu_rounded),
-          onPressed: () => setState(() => _railExpanded = !_railExpanded),
+        leading: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              width: _railExpanded ? 190 : 54,
+              height: 46,
+              alignment: Alignment.center,
+              child: _railExpanded
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset('assets/safefoto-logo.png', width: 30, height: 30),
+                        const SizedBox(width: 8),
+                        Text(
+                          'SafeFoto',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    )
+                  : Image.asset('assets/safefoto-logo.png', width: 32, height: 32),
+            ),
+            IconButton(
+              key: const ValueKey('safefoto_navigation_toggle'),
+              tooltip: _railExpanded ? 'Zwiń menu' : 'Rozwiń menu',
+              icon: Icon(_railExpanded ? Icons.menu_open_rounded : Icons.menu_rounded),
+              onPressed: () => setState(() => _railExpanded = !_railExpanded),
+            ),
+          ],
         ),
         destinations: navigationDestinations
             .map(
               (e) => NavigationRailDestination(
-                icon: e.icon,
+                icon: _AnimatedNavIcon(icon: e.icon, selected: false),
                 label: Text(e.label),
-                selectedIcon: e.selectedIcon,
+                selectedIcon: _AnimatedNavIcon(icon: e.selectedIcon ?? e.icon, selected: true),
                 disabled: !e.enabled,
               ),
             )
@@ -207,7 +232,7 @@ void _onNavigationSelected(TabsRouter router, int index, WidgetRef ref) {
 class _BottomNavigationBar extends ConsumerStatefulWidget {
   const _BottomNavigationBar({required this.tabsRouter, required this.destinations});
 
-  final List<Widget> destinations;
+  final List<NavigationDestination> destinations;
   final TabsRouter tabsRouter;
 
   @override
@@ -247,7 +272,32 @@ class _BottomNavigationBarState extends ConsumerState<_BottomNavigationBar> {
     return NavigationBar(
       selectedIndex: widget.tabsRouter.activeIndex,
       onDestinationSelected: (index) => _onNavigationSelected(widget.tabsRouter, index, ref),
-      destinations: widget.destinations,
+      destinations: widget.destinations.map((destination) {
+        return NavigationDestination(
+          label: destination.label,
+          enabled: destination.enabled,
+          icon: _AnimatedNavIcon(icon: destination.icon, selected: false),
+          selectedIcon: _AnimatedNavIcon(icon: destination.selectedIcon ?? destination.icon, selected: true),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// Gentle motion on selection without moving the surrounding navigation layout.
+class _AnimatedNavIcon extends StatelessWidget {
+  const _AnimatedNavIcon({required this.icon, required this.selected});
+
+  final Widget icon;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: selected ? 1.12 : 1,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutBack,
+      child: AnimatedOpacity(opacity: selected ? 1 : 0.82, duration: const Duration(milliseconds: 240), child: icon),
     );
   }
 }
