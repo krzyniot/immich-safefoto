@@ -112,8 +112,13 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
             body: isScreenLandscape
                 ? Row(
                     children: [
-                      navigationRail(tabsRouter),
-                      const VerticalDivider(),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeInOutCubic,
+                        alignment: Alignment.centerLeft,
+                        child: navigationRail(tabsRouter),
+                      ),
+                      const VerticalDivider(width: 1),
                       Expanded(child: child),
                     ],
                   )

@@ -85,7 +85,7 @@ class _FamilyBulkActionState extends ConsumerState<FamilyBulkAction> {
 
   @override
   Widget build(BuildContext context) => BaseActionButton(
-    label: widget.mode == 'move' ? 'Przenieś do rodziny' : 'Udostępnij rodzinie',
+    label: widget.mode == 'move' ? 'Do rodziny' : 'Dla rodziny',
     iconData: widget.mode == 'move' ? Icons.drive_file_move_outlined : Icons.groups_outlined,
     onPressed: busy ? null : publish,
   );

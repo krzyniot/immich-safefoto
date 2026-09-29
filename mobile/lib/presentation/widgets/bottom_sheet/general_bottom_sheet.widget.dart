@@ -41,6 +41,7 @@ class GeneralBottomSheet extends ConsumerStatefulWidget {
 
 class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
   late DraggableScrollableController sheetController;
+  bool showMoreActions = false;
   @override
   void initState() {
     super.initState();
@@ -89,8 +90,9 @@ class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
 
     return BaseBottomSheet(
       controller: sheetController,
-      initialChildSize: widget.minChildSize ?? 0.23,
-      minChildSize: widget.minChildSize,
+      initialChildSize: widget.minChildSize ?? 0.38,
+      minChildSize: widget.minChildSize ?? 0.30,
+      wrapActions: true,
       maxChildSize: 0.85,
       shouldCloseOnMinExtent: false,
       actions: [
@@ -104,26 +106,40 @@ class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
               sheetController.animateTo(0.72, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
             },
           ),
-        ...actions.map((action) => ActionColumnButtonWidget(action: TimelineAction(action: action))),
         const ShareActionButton(source: ActionSource.timeline),
-        if (multiselect.hasRemote) ...[
-          const ShareLinkActionButton(source: ActionSource.timeline),
-          if (multiselect.onlyRemote) const DownloadActionButton(source: ActionSource.timeline),
-          isTrashEnable
-              ? const TrashActionButton(source: ActionSource.timeline)
-              : const DeletePermanentActionButton(source: ActionSource.timeline),
-          const FavoriteActionButton(source: ActionSource.timeline),
-          const ArchiveActionButton(source: ActionSource.timeline),
-          if (tagsEnabled) const BulkTagAssetsActionButton(source: ActionSource.timeline),
-          const EditDateTimeActionButton(source: ActionSource.timeline),
-          const EditLocationActionButton(source: ActionSource.timeline),
-          if (multiselect.selectedAssets.length > 1) const StackActionButton(source: ActionSource.timeline),
-          if (multiselect.hasStacked) const UnStackActionButton(source: ActionSource.timeline),
-          if (multiselect.onlyLocal || multiselect.hasMerged) const DeleteActionButton(source: ActionSource.timeline),
+        BaseActionButton(
+          label: showMoreActions ? 'Mniej' : 'Więcej',
+          iconData: showMoreActions ? Icons.expand_less : Icons.more_horiz,
+          onPressed: () {
+            setState(() => showMoreActions = !showMoreActions);
+            if (!showMoreActions) {
+              sheetController.animateTo(0.38, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
+            } else {
+              sheetController.animateTo(0.75, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
+            }
+          },
+        ),
+        if (showMoreActions) ...[
+          ...actions.map((action) => ActionColumnButtonWidget(action: TimelineAction(action: action))),
+          if (multiselect.hasRemote) ...[
+            const ShareLinkActionButton(source: ActionSource.timeline),
+            if (multiselect.onlyRemote) const DownloadActionButton(source: ActionSource.timeline),
+            isTrashEnable
+                ? const TrashActionButton(source: ActionSource.timeline)
+                : const DeletePermanentActionButton(source: ActionSource.timeline),
+            const FavoriteActionButton(source: ActionSource.timeline),
+            const ArchiveActionButton(source: ActionSource.timeline),
+            if (tagsEnabled) const BulkTagAssetsActionButton(source: ActionSource.timeline),
+            const EditDateTimeActionButton(source: ActionSource.timeline),
+            const EditLocationActionButton(source: ActionSource.timeline),
+            if (multiselect.selectedAssets.length > 1) const StackActionButton(source: ActionSource.timeline),
+            if (multiselect.hasStacked) const UnStackActionButton(source: ActionSource.timeline),
+            if (multiselect.onlyLocal || multiselect.hasMerged) const DeleteActionButton(source: ActionSource.timeline),
+          ],
+          if (multiselect.onlyLocal || multiselect.hasMerged)
+            const DeleteLocalActionButton(source: ActionSource.timeline),
+          if (multiselect.onlyLocal) const UploadActionButton(source: ActionSource.timeline),
         ],
-        if (multiselect.onlyLocal || multiselect.hasMerged)
-          const DeleteLocalActionButton(source: ActionSource.timeline),
-        if (multiselect.onlyLocal) const UploadActionButton(source: ActionSource.timeline),
       ],
       slivers: [
         const AddToAlbumHeader(),

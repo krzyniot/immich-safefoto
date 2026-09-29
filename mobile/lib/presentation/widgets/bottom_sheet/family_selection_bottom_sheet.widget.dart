@@ -124,16 +124,12 @@ class _FamilySelectionBottomSheetState extends ConsumerState<FamilySelectionBott
         const ShareActionButton(source: ActionSource.timeline),
         if (ownSelection)
           BaseActionButton(
-            label: 'Dodaj do albumu',
+            label: 'Do albumu',
             iconData: Icons.photo_album_outlined,
             onPressed: busy ? null : _chooseAlbum,
           ),
         if (ownSelection)
-          BaseActionButton(
-            label: 'Usuń z rodziny',
-            iconData: Icons.drive_file_move_outlined,
-            onPressed: busy ? null : _run,
-          ),
+          BaseActionButton(label: 'Z rodziny', iconData: Icons.drive_file_move_outlined, onPressed: busy ? null : _run),
       ],
     );
   }
