@@ -27,6 +27,7 @@ class TabShellPage extends ConsumerStatefulWidget {
 }
 
 class _TabShellPageState extends ConsumerState<TabShellPage> {
+  bool _railExpanded = false;
   @override
   Widget build(BuildContext context) {
     final isScreenLandscape = context.orientation == Orientation.landscape;
@@ -65,6 +66,15 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
 
     Widget navigationRail(TabsRouter tabsRouter) {
       return NavigationRail(
+        extended: _railExpanded,
+        minWidth: 64,
+        minExtendedWidth: 210,
+        leading: IconButton(
+          key: const ValueKey('safefoto_navigation_toggle'),
+          tooltip: _railExpanded ? 'Zwiń menu' : 'Rozwiń menu',
+          icon: Icon(_railExpanded ? Icons.menu_open_rounded : Icons.menu_rounded),
+          onPressed: () => setState(() => _railExpanded = !_railExpanded),
+        ),
         destinations: navigationDestinations
             .map(
               (e) => NavigationRailDestination(
@@ -77,8 +87,8 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
             .toList(),
         onDestinationSelected: (index) => _onNavigationSelected(tabsRouter, index, ref),
         selectedIndex: tabsRouter.activeIndex,
-        labelType: NavigationRailLabelType.all,
-        groupAlignment: 0.0,
+        labelType: NavigationRailLabelType.none,
+        groupAlignment: -1.0,
       );
     }
 
