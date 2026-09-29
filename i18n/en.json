@@ -637,7 +637,7 @@
   "backup_controller_page_none_selected": "None selected",
   "backup_controller_page_remainder": "Remainder",
   "backup_controller_page_remainder_sub": "Remaining photos and videos to back up from selection",
-  "backup_controller_page_server_storage": "Server Storage",
+  "backup_controller_page_server_storage": "My SafeFoto storage",
   "backup_controller_page_storage_format": "{used} of {total} used",
   "backup_controller_page_to_backup": "Albums to be backed up",
   "backup_controller_page_total_sub": "All unique photos and videos from selected albums",

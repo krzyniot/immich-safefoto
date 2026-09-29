@@ -622,7 +622,7 @@
   "backup_controller_page_none_selected": "Nic nie wybrano",
   "backup_controller_page_remainder": "Pozostałe",
   "backup_controller_page_remainder_sub": "Pozostałe zdjęcia i filmy wybrane do wykonania kopii zapasowej",
-  "backup_controller_page_server_storage": "Pamięć Serwera",
+  "backup_controller_page_server_storage": "Moje miejsce w SafeFoto",
   "backup_controller_page_storage_format": "Wykorzystano {used} z {total}",
   "backup_controller_page_to_backup": "Albumy, dla których ma być tworzona kopia zapasowa",
   "backup_controller_page_total_sub": "Wszystkie unikalne zdjęcia i filmy z wybranych albumów",

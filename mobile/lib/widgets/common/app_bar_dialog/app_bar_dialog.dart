@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
@@ -74,6 +75,17 @@ class ImmichAppBarDialog extends HookConsumerWidget {
 
     buildSettingButton() {
       return buildActionButton(Icons.settings_outlined, "settings", () => context.pushRoute(const SettingsRoute()));
+    }
+
+    buildSafeFotoPanelButton() {
+      return buildActionButton(Icons.open_in_browser_rounded, 'Panel SafeFoto', () async {
+        final opened = await launchUrl(Uri.parse('https://panel.safefoto.pl'), mode: LaunchMode.externalApplication);
+        if (!opened && context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Nie udało się otworzyć panelu SafeFoto')));
+        }
+      }, trailing: const Icon(Icons.open_in_new_rounded, size: 18));
     }
 
     buildFreeUpSpaceButton() {
@@ -206,6 +218,7 @@ class ImmichAppBarDialog extends HookConsumerWidget {
                   ),
                 ),
                 if (isReadonlyModeEnabled) buildReadonlyMessage(),
+                buildSafeFotoPanelButton(),
                 buildFreeUpSpaceButton(),
                 buildSettingButton(),
                 buildSignOutButton(),
