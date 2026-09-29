@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
@@ -33,29 +34,29 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
 
     final navigationDestinations = [
       NavigationDestination(
-        label: 'Moje',
+        label: 'my_photos'.tr(),
         icon: const Icon(Icons.photo_library_outlined),
         selectedIcon: Icon(Icons.photo_library, color: context.primaryColor),
       ),
       NavigationDestination(
-        label: 'Rodzina',
+        label: 'family_photos'.tr(),
         icon: const Icon(Icons.people_outline),
         selectedIcon: Icon(Icons.people, color: context.primaryColor),
       ),
       NavigationDestination(
-        label: 'Szukaj',
+        label: 'search'.tr(),
         icon: const Icon(Icons.search_rounded),
         selectedIcon: Icon(Icons.search, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,
       ),
       NavigationDestination(
-        label: 'Albumy',
+        label: 'albums'.tr(),
         icon: const Icon(Icons.photo_album_outlined),
         selectedIcon: Icon(Icons.photo_album_rounded, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,
       ),
       NavigationDestination(
-        label: 'Biblioteka',
+        label: 'library'.tr(),
         icon: const Icon(Icons.space_dashboard_outlined),
         selectedIcon: Icon(Icons.space_dashboard_rounded, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,

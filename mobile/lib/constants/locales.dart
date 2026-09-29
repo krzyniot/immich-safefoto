@@ -2,6 +2,7 @@ import 'dart:ui';
 
 const Map<String, Locale> locales = {
   // Default locale
+  'Polski (pl)': Locale('pl'),
   'English (en)': Locale('en'),
   // Additional locales
   'Arabic (ar)': Locale('ar'),
@@ -41,7 +42,6 @@ const Map<String, Locale> locales = {
   'Māori (mi)': Locale('mi'),
   'Nepali (ne)': Locale('ne'),
   'Norwegian Bokmål (nb_NO)': Locale('nb', 'NO'),
-  'Polish (pl)': Locale('pl'),
   'Portuguese (pt)': Locale('pt'),
   'Romanian (ro)': Locale('ro'),
   'Russian (ru)': Locale('ru'),

@@ -124,7 +124,7 @@ void main() {
 
   testWidgets('shows a distinct family gallery and an empty state after fetching', (tester) async {
     await showPage(tester);
-    expect(find.text('Zdjęcia rodziny'), findsOneWidget);
+    expect(find.text('family_photos'), findsOneWidget);
     expect(find.textContaining('Nie ma jeszcze zdjęć'), findsOneWidget);
     expect(find.byIcon(Icons.delete), findsNothing);
   });

@@ -102,7 +102,7 @@ class _DriftUploadDetailPageState extends ConsumerState<DriftUploadDetailPage> {
           SliverToBoxAdapter(
             child: _buildSectionHeader(
               context,
-              title: "Downloading from iCloud",
+              title: "Pobieranie z iCloud",
               count: iCloudProgress.length,
               color: context.colorScheme.tertiary,
             ),

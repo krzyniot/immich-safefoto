@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
@@ -242,7 +243,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
 
     if (manifest == null) {
       return Scaffold(
-        appBar: AppBar(automaticallyImplyLeading: false, title: const Text('Zdjęcia rodziny')),
+        appBar: AppBar(automaticallyImplyLeading: false, title: Text('family_photos'.tr())),
         body: Center(
           child: _loading
               ? const CircularProgressIndicator()
@@ -273,7 +274,7 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         appBar: SliverAppBar(
           floating: true,
           automaticallyImplyLeading: false,
-          title: const Text('Zdjęcia rodziny'),
+          title: Text('family_photos'.tr()),
           actions: [
             if (_refreshing)
               const Padding(

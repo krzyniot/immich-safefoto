@@ -49,13 +49,13 @@ class _AssetDetailsView extends ConsumerWidget {
           _RemoteAssetSection(asset: asset),
         ] else ...[
           _PropertySectionCard(
-            title: 'Local Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'no_checksum_local'.tr())],
+            title: 'Pliki lokalne',
+            properties: [_PropertyItem(label: 'Stan', value: 'no_checksum_local'.tr())],
           ),
           const SizedBox(height: 16),
           _PropertySectionCard(
-            title: 'Remote Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'no_checksum_remote'.tr())],
+            title: 'Pliki na serwerze',
+            properties: [_PropertyItem(label: 'Stan', value: 'no_checksum_remote'.tr())],
           ),
         ],
       ],
@@ -105,36 +105,36 @@ class _AssetPropertiesSectionState extends ConsumerState<_AssetPropertiesSection
   void _addCommonProperties() {
     final asset = widget.asset;
     properties.addAll([
-      _PropertyItem(label: 'Name', value: asset.name),
-      _PropertyItem(label: 'Checksum', value: asset.checksum),
-      _PropertyItem(label: 'Type', value: asset.type.toString()),
-      _PropertyItem(label: 'Created At', value: asset.createdAt.toString()),
-      _PropertyItem(label: 'Updated At', value: asset.updatedAt.toString()),
-      _PropertyItem(label: 'Width', value: asset.width?.toString()),
-      _PropertyItem(label: 'Height', value: asset.height?.toString()),
-      _PropertyItem(label: 'Duration', value: asset.durationMs != null ? '${asset.durationMs} ms' : null),
-      _PropertyItem(label: 'Is Favorite', value: asset.isFavorite.toString()),
-      _PropertyItem(label: 'Live Photo Video ID', value: asset.livePhotoVideoId),
-      _PropertyItem(label: 'Is Edited', value: asset.isEdited.toString()),
+      _PropertyItem(label: 'Nazwa', value: asset.name),
+      _PropertyItem(label: 'Suma kontrolna', value: asset.checksum),
+      _PropertyItem(label: 'Typ', value: asset.type.toString()),
+      _PropertyItem(label: 'Data utworzenia', value: asset.createdAt.toString()),
+      _PropertyItem(label: 'Data aktualizacji', value: asset.updatedAt.toString()),
+      _PropertyItem(label: 'Szerokość', value: asset.width?.toString()),
+      _PropertyItem(label: 'Wysokość', value: asset.height?.toString()),
+      _PropertyItem(label: 'Czas trwania', value: asset.durationMs != null ? '${asset.durationMs} ms' : null),
+      _PropertyItem(label: 'Ulubione', value: asset.isFavorite.toString()),
+      _PropertyItem(label: 'ID filmu Live Photo', value: asset.livePhotoVideoId),
+      _PropertyItem(label: 'Edytowane', value: asset.isEdited.toString()),
     ]);
   }
 
   Future<void> _addLocalAssetProperties(LocalAsset asset) async {
     properties.insertAll(0, [
-      _PropertyItem(label: 'Local ID', value: asset.id),
-      _PropertyItem(label: 'Remote ID', value: asset.remoteId),
+      _PropertyItem(label: 'ID lokalne', value: asset.id),
+      _PropertyItem(label: 'ID na serwerze', value: asset.remoteId),
     ]);
 
-    properties.insert(4, _PropertyItem(label: 'Orientation', value: asset.orientation.toString()));
+    properties.insert(4, _PropertyItem(label: 'Orientacja', value: asset.orientation.toString()));
     final albums = await ref.read(assetServiceProvider).getSourceAlbums(asset.id);
     properties.add(_PropertyItem(label: 'Album', value: albums.map((a) => a.name).join(', ')));
     if (CurrentPlatform.isIOS) {
-      properties.add(_PropertyItem(label: 'Cloud ID', value: asset.cloudId));
-      properties.add(_PropertyItem(label: 'Adjustment Time', value: asset.adjustmentTime?.toString()));
+      properties.add(_PropertyItem(label: 'ID w chmurze', value: asset.cloudId));
+      properties.add(_PropertyItem(label: 'Czas korekty', value: asset.adjustmentTime?.toString()));
     }
     properties.add(
       _PropertyItem(
-        label: 'GPS Coordinates',
+        label: 'Współrzędne GPS',
         value: asset.hasCoordinates ? '${asset.latitude}, ${asset.longitude}' : null,
       ),
     );
@@ -142,15 +142,15 @@ class _AssetPropertiesSectionState extends ConsumerState<_AssetPropertiesSection
 
   Future<void> _addRemoteAssetProperties(RemoteAsset asset) async {
     properties.insertAll(0, [
-      _PropertyItem(label: 'Remote ID', value: asset.id),
-      _PropertyItem(label: 'Local ID', value: asset.localId),
-      _PropertyItem(label: 'Owner ID', value: asset.ownerId),
+      _PropertyItem(label: 'ID na serwerze', value: asset.id),
+      _PropertyItem(label: 'ID lokalne', value: asset.localId),
+      _PropertyItem(label: 'ID właściciela', value: asset.ownerId),
     ]);
 
     final additionalProps = <_PropertyItem>[
-      _PropertyItem(label: 'Thumb Hash', value: asset.thumbHash),
-      _PropertyItem(label: 'Visibility', value: asset.visibility.toString()),
-      _PropertyItem(label: 'Stack ID', value: asset.stackId),
+      _PropertyItem(label: 'Skrót miniatury', value: asset.thumbHash),
+      _PropertyItem(label: 'Widoczność', value: asset.visibility.toString()),
+      _PropertyItem(label: 'ID stosu', value: asset.stackId),
     ];
 
     properties.insertAll(4, additionalProps);
@@ -166,25 +166,25 @@ class _AssetPropertiesSectionState extends ConsumerState<_AssetPropertiesSection
   void _addExifProperties(ExifInfo exif) {
     properties.addAll([
       _PropertyItem(
-        label: 'File Size',
+        label: 'Rozmiar pliku',
         value: exif.fileSize != null ? '${(exif.fileSize! / 1024 / 1024).toStringAsFixed(2)} MB' : null,
       ),
-      _PropertyItem(label: 'Description', value: exif.description),
-      _PropertyItem(label: 'Date Taken', value: exif.dateTimeOriginal?.toString()),
-      _PropertyItem(label: 'Time Zone', value: exif.timeZone),
-      _PropertyItem(label: 'Camera Make', value: exif.make),
-      _PropertyItem(label: 'Camera Model', value: exif.model),
-      _PropertyItem(label: 'Lens', value: exif.lens),
+      _PropertyItem(label: 'Opis', value: exif.description),
+      _PropertyItem(label: 'Data wykonania', value: exif.dateTimeOriginal?.toString()),
+      _PropertyItem(label: 'Strefa czasowa', value: exif.timeZone),
+      _PropertyItem(label: 'Producent aparatu', value: exif.make),
+      _PropertyItem(label: 'Model aparatu', value: exif.model),
+      _PropertyItem(label: 'Obiektyw', value: exif.lens),
       _PropertyItem(label: 'F-Number', value: exif.f != null ? 'f/${exif.fNumber}' : null),
-      _PropertyItem(label: 'Focal Length', value: exif.mm != null ? '${exif.focalLength}mm' : null),
+      _PropertyItem(label: 'Ogniskowa', value: exif.mm != null ? '${exif.focalLength}mm' : null),
       _PropertyItem(label: 'ISO', value: exif.iso?.toString()),
-      _PropertyItem(label: 'Exposure Time', value: exif.exposureTime.isNotEmpty ? exif.exposureTime : null),
+      _PropertyItem(label: 'Czas naświetlania', value: exif.exposureTime.isNotEmpty ? exif.exposureTime : null),
       _PropertyItem(
-        label: 'GPS Coordinates',
+        label: 'Współrzędne GPS',
         value: exif.hasCoordinates ? '${exif.latitude}, ${exif.longitude}' : null,
       ),
       _PropertyItem(
-        label: 'Location',
+        label: 'Lokalizacja',
         value: [exif.city, exif.state, exif.country].where((e) => e != null && e.isNotEmpty).join(', '),
       ),
     ]);
@@ -215,15 +215,15 @@ class _LocalAssetsSection extends ConsumerWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _PropertySectionCard(
-            title: 'Local Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'Loading...')],
+            title: 'Pliki lokalne',
+            properties: [_PropertyItem(label: 'Stan', value: 'Ładowanie…')],
           );
         }
 
         if (snapshot.hasError) {
           return _PropertySectionCard(
-            title: 'Local Assets',
-            properties: [_PropertyItem(label: 'Error', value: snapshot.error.toString())],
+            title: 'Pliki lokalne',
+            properties: [_PropertyItem(label: 'Błąd', value: snapshot.error.toString())],
           );
         }
 
@@ -238,8 +238,8 @@ class _LocalAssetsSection extends ConsumerWidget {
 
         if (localAssets.isEmpty) {
           return _PropertySectionCard(
-            title: 'Local Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'no_local_assets_found'.tr())],
+            title: 'Pliki lokalne',
+            properties: [_PropertyItem(label: 'Stan', value: 'no_local_assets_found'.tr())],
           );
         }
 
@@ -247,8 +247,8 @@ class _LocalAssetsSection extends ConsumerWidget {
           children: [
             if (localAssets.length > 1)
               _PropertySectionCard(
-                title: 'Local Assets Summary',
-                properties: [_PropertyItem(label: 'Total Count', value: localAssets.length.toString())],
+                title: 'Podsumowanie plików lokalnych',
+                properties: [_PropertyItem(label: 'Łączna liczba', value: localAssets.length.toString())],
               ),
             ...localAssets.map((localAsset) {
               return Padding(
@@ -281,15 +281,15 @@ class _RemoteAssetSection extends ConsumerWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _PropertySectionCard(
-            title: 'Remote Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'Loading...')],
+            title: 'Pliki na serwerze',
+            properties: [_PropertyItem(label: 'Stan', value: 'Ładowanie…')],
           );
         }
 
         if (snapshot.hasError) {
           return _PropertySectionCard(
-            title: 'Remote Assets',
-            properties: [_PropertyItem(label: 'Error', value: snapshot.error.toString())],
+            title: 'Pliki na serwerze',
+            properties: [_PropertyItem(label: 'Błąd', value: snapshot.error.toString())],
           );
         }
 
@@ -297,8 +297,8 @@ class _RemoteAssetSection extends ConsumerWidget {
 
         if (remoteAsset == null) {
           return _PropertySectionCard(
-            title: 'Remote Assets',
-            properties: [_PropertyItem(label: 'Status', value: 'no_remote_assets_found'.tr())],
+            title: 'Pliki na serwerze',
+            properties: [_PropertyItem(label: 'Stan', value: 'no_remote_assets_found'.tr())],
           );
         }
 

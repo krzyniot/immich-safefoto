@@ -42,7 +42,7 @@ class SyncStatusAndActions extends HookConsumerWidget {
         if (!await dbFile.exists()) {
           if (context.mounted) {
             context.scaffoldMessenger.showSnackBar(
-              SnackBar(content: Text("Database file not found".t(context: context))),
+              SnackBar(content: Text("Nie znaleziono pliku bazy danych".t(context: context))),
             );
           }
           return;
@@ -68,7 +68,7 @@ class SyncStatusAndActions extends HookConsumerWidget {
 
         if (context.mounted) {
           context.scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text("Database exported successfully".t(context: context))),
+            SnackBar(content: Text("Baza danych została wyeksportowana".t(context: context))),
           );
         }
       } catch (e) {
@@ -144,7 +144,7 @@ class SyncStatusAndActions extends HookConsumerWidget {
         ),
         if (CurrentPlatform.isIOS && serverVersion.isAtLeast(major: 2, minor: 5))
           SettingListTile(
-            title: "Sync Cloud Ids".t(context: context),
+            title: "Synchronizuj identyfikatory chmury".t(context: context),
             leading: const Icon(Icons.cloud_circle_rounded),
             subtitle: "tap_to_run_job".t(context: context),
             trailing: _SyncStatusIcon(status: ref.watch(syncStatusProvider).cloudIdSyncStatus),

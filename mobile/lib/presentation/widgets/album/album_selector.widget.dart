@@ -748,7 +748,7 @@ class AddToAlbumHeader extends ConsumerWidget {
       final selectedAssets = ref.read(multiSelectProvider).selectedAssets;
       final newAlbum = await ref
           .read(remoteAlbumProvider.notifier)
-          .createAlbumWithAssets(title: "Untitled Album", assets: selectedAssets);
+          .createAlbumWithAssets(title: "Nowy album", assets: selectedAssets);
 
       if (newAlbum == null) {
         ImmichToast.show(context: context, toastType: ToastType.error, msg: 'errors.failed_to_create_album'.tr());
