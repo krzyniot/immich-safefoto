@@ -16,6 +16,7 @@ import 'package:immich_mobile/domain/services/family_private_visibility.service.
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/presentation/pages/family_gallery.page.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
+import 'package:immich_mobile/presentation/widgets/bottom_sheet/family_selection_bottom_sheet.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/user.provider.dart';
@@ -155,7 +156,8 @@ void main() {
     await showPage(tester);
     expect(find.byType(Timeline), findsOneWidget);
     final timeline = tester.widget<Timeline>(find.byType(Timeline));
-    expect(timeline.readOnly, isTrue);
+    expect(timeline.readOnly, isFalse);
+    expect(timeline.bottomSheet, isA<FamilySelectionBottomSheet>());
     expect(timeline.withScrubber, isTrue);
     expect(find.byIcon(Icons.delete), findsNothing);
   });

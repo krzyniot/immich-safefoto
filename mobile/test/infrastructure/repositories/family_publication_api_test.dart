@@ -30,6 +30,18 @@ void main() {
     client.close();
   });
 
+  test('family album contribution uses the family endpoint and keeps share mode', () async {
+    final client = MockClient((request) async {
+      expect(request.method, 'PUT');
+      expect(request.url.toString(), 'https://test.safefoto.pl/api/family/albums/album-1/photos');
+      expect(jsonDecode(request.body), {'assetIds': ['owned-photo'], 'mode': 'share'});
+      return http.Response('', 204);
+    });
+    final api = FamilySyncApiRepository(apiBasePath: 'https://test.safefoto.pl/api', client: client);
+    await api.addPhotosToFamilyAlbum(albumId: 'album-1', assetIds: ['owned-photo']);
+    client.close();
+  });
+
   test('invalid requests never reach the server', () async {
     var requests = 0;
     final client = MockClient((request) async {

@@ -10,6 +10,7 @@ import 'package:immich_mobile/domain/utils/event_stream.dart';
 import 'package:immich_mobile/domain/models/timeline.model.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
+import 'package:immich_mobile/presentation/widgets/bottom_sheet/family_selection_bottom_sheet.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/domain/models/family_sync_manifest.model.dart';
@@ -30,7 +31,8 @@ class FamilyGalleryPage extends ConsumerStatefulWidget {
   ConsumerState<FamilyGalleryPage> createState() => _FamilyGalleryPageState();
 }
 
-class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with WidgetsBindingObserver {
+class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage>
+    with WidgetsBindingObserver {
   FamilySyncManifest? _manifest;
   String? _albumId;
   String? _visibleUserId;
@@ -67,18 +69,21 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         _clearVisibleFamily();
       }
     });
-    _openedSubscription = EventStream.shared.listen<FamilyGalleryOpenedEvent>((_) {
+    _openedSubscription = EventStream.shared.listen<FamilyGalleryOpenedEvent>((
+      _,
+    ) {
       if (mounted) {
         _loadAndRefresh();
       }
     });
-    _publicationSubscription = EventStream.shared.listen<FamilyPublicationChangedEvent>((_) {
-      if (mounted) {
-        _dropTimeline();
-        setState(() => _manifest = null);
-        _loadAndRefresh();
-      }
-    });
+    _publicationSubscription = EventStream.shared
+        .listen<FamilyPublicationChangedEvent>((_) {
+          if (mounted) {
+            _dropTimeline();
+            setState(() => _manifest = null);
+            _loadAndRefresh();
+          }
+        });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadAndRefresh();
@@ -175,13 +180,16 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         });
       }
       final result = await service.refresh();
-      await ref.read(familyPrivateVisibilityProvider).reconcile(result.manifest, identity);
+      await ref
+          .read(familyPrivateVisibilityProvider)
+          .reconcile(result.manifest, identity);
       if (!mounted || generation != _requestGeneration) {
         return;
       }
       setState(() {
         _manifest = result.manifest;
-        if (_albumId != null && !_manifest!.albums.any((album) => album.id == _albumId)) {
+        if (_albumId != null &&
+            !_manifest!.albums.any((album) => album.id == _albumId)) {
           _albumId = null;
         }
         _loading = false;
@@ -192,7 +200,9 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
         return;
       }
       final session = currentFamilySyncIdentity(ref.read(storeServiceProvider));
-      final unauthorized = error is FamilySyncFetchException && (error.statusCode == 401 || error.statusCode == 403);
+      final unauthorized =
+          error is FamilySyncFetchException &&
+          (error.statusCode == 401 || error.statusCode == 403);
       if (unauthorized || session != identity) {
         _dropTimeline();
       }
@@ -212,7 +222,10 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     }
   }
 
-  TimelineService _timelineFor(FamilySyncManifest manifest, GroupAssetsBy groupBy) {
+  TimelineService _timelineFor(
+    FamilySyncManifest manifest,
+    GroupAssetsBy groupBy,
+  ) {
     if (_familyTimeline == null ||
         !identical(_timelineManifest, manifest) ||
         _timelineAlbumId != _albumId ||
@@ -238,22 +251,37 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
     // A family manifest must never be rendered after the session is revoked.
     final userId = ref.watch(currentUserProvider.select((user) => user?.id));
     final identity = currentFamilySyncIdentity(ref.read(storeServiceProvider));
-    final manifest = identity != null && _visibleIdentity == identity && _visibleUserId == userId ? _manifest : null;
+    final manifest =
+        identity != null &&
+            _visibleIdentity == identity &&
+            _visibleUserId == userId
+        ? _manifest
+        : null;
     final colors = Theme.of(context).colorScheme;
 
     if (manifest == null) {
       return Scaffold(
-        appBar: AppBar(automaticallyImplyLeading: false, title: Text('family_photos'.tr())),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text('family_photos'.tr()),
+        ),
         body: Center(
           child: _loading
               ? const CircularProgressIndicator()
-              : Text(_error ?? 'Nie ma jeszcze zdjęć rodziny.', textAlign: TextAlign.center),
+              : Text(
+                  _error ?? 'Nie ma jeszcze zdjęć rodziny.',
+                  textAlign: TextAlign.center,
+                ),
         ),
       );
     }
 
-    final configuredGroup = ref.watch(appConfigProvider.select((config) => config.timeline.groupAssetsBy));
-    final groupBy = configuredGroup == GroupAssetsBy.month ? GroupAssetsBy.month : GroupAssetsBy.day;
+    final configuredGroup = ref.watch(
+      appConfigProvider.select((config) => config.timeline.groupAssetsBy),
+    );
+    final groupBy = configuredGroup == GroupAssetsBy.month
+        ? GroupAssetsBy.month
+        : GroupAssetsBy.day;
     final timeline = _timelineFor(manifest, groupBy);
     final assets = familyGalleryAssets(manifest, albumId: _albumId);
     final timelineKey = [
@@ -268,7 +296,8 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
       key: ValueKey(timelineKey),
       overrides: [timelineServiceProvider.overrideWithValue(timeline)],
       child: Timeline(
-        readOnly: true,
+        readOnly: false,
+        bottomSheet: FamilySelectionBottomSheet(manifest: manifest),
         groupBy: groupBy,
         onRefresh: _loadAndRefresh,
         appBar: SliverAppBar(
@@ -279,10 +308,20 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
             if (_refreshing)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 18),
-                child: Center(child: SizedBox(width: 19, height: 19, child: CircularProgressIndicator(strokeWidth: 2))),
+                child: Center(
+                  child: SizedBox(
+                    width: 19,
+                    height: 19,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
               )
             else
-              IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _loadAndRefresh),
+              IconButton(
+                tooltip: 'Odśwież',
+                icon: const Icon(Icons.refresh),
+                onPressed: _loadAndRefresh,
+              ),
           ],
         ),
         topSliverWidget: SliverToBoxAdapter(
@@ -296,14 +335,20 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
                     color: colors.surfaceContainerHighest,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Text(_error!, style: TextStyle(color: colors.onSurface)),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: colors.onSurface),
+                      ),
                     ),
                   ),
                 ),
               if (manifest.albums.isNotEmpty)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       ChoiceChip(
@@ -316,7 +361,8 @@ class _FamilyGalleryPageState extends ConsumerState<FamilyGalleryPage> with Widg
                         ChoiceChip(
                           label: Text(album.name),
                           selected: _albumId == album.id,
-                          onSelected: (_) => setState(() => _albumId = album.id),
+                          onSelected: (_) =>
+                              setState(() => _albumId = album.id),
                         ),
                       ],
                     ],

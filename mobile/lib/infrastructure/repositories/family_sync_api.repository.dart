@@ -10,7 +10,8 @@ class FamilySyncFetchException implements Exception {
   final int statusCode;
 
   @override
-  String toString() => 'SafeFoto family manifest request failed: HTTP $statusCode';
+  String toString() =>
+      'SafeFoto family manifest request failed: HTTP $statusCode';
 }
 
 /// The native HTTP client already carries the session authentication configured
@@ -24,12 +25,13 @@ class FamilySyncApiRepository {
     this.apiBasePathProvider,
   });
 
-  factory FamilySyncApiRepository.fromApiService(ApiService api) => FamilySyncApiRepository(
-    apiBasePath: api.apiClient.basePath,
-    client: NetworkRepository.client,
-    headersProvider: ApiService.getRequestHeaders,
-    apiBasePathProvider: () => api.apiClient.basePath,
-  );
+  factory FamilySyncApiRepository.fromApiService(ApiService api) =>
+      FamilySyncApiRepository(
+        apiBasePath: api.apiClient.basePath,
+        client: NetworkRepository.client,
+        headersProvider: ApiService.getRequestHeaders,
+        apiBasePathProvider: () => api.apiClient.basePath,
+      );
 
   final String apiBasePath;
   final http.Client client;
@@ -39,11 +41,19 @@ class FamilySyncApiRepository {
 
   /// The server re-checks ownership and family membership. No local originals
   /// or phone gallery are modified by this operation.
-  Future<void> updatePublication({required List<String> assetIds, required String mode}) async {
-    if (assetIds.isEmpty || assetIds.length > 1000 || !{'share', 'move', 'private'}.contains(mode)) {
+  Future<void> updatePublication({
+    required List<String> assetIds,
+    required String mode,
+  }) async {
+    if (assetIds.isEmpty ||
+        assetIds.length > 1000 ||
+        !{'share', 'move', 'private'}.contains(mode)) {
       throw ArgumentError('Invalid family publication request');
     }
-    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(RegExp(r'/$'), '');
+    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(
+      RegExp(r'/$'),
+      '',
+    );
     final response = await client
         .put(
           Uri.parse('$basePath/family/photos/publication'),
@@ -61,12 +71,45 @@ class FamilySyncApiRepository {
     }
   }
 
+  Future<void> addPhotosToFamilyAlbum({
+    required String albumId,
+    required List<String> assetIds,
+  }) async {
+    if (assetIds.isEmpty || assetIds.length > 1000)
+      throw ArgumentError('Invalid album request');
+    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(
+      RegExp(r'/$'),
+      '',
+    );
+    final response = await client
+        .put(
+          Uri.parse('$basePath/family/albums/$albumId/photos'),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...headers,
+            ...?headersProvider?.call(),
+          },
+          body: jsonEncode({'assetIds': assetIds, 'mode': 'share'}),
+        )
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode != 204)
+      throw FamilySyncFetchException(response.statusCode);
+  }
+
   Future<FamilySyncManifest> fetchManifest() async {
-    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(RegExp(r'/$'), '');
+    final basePath = (apiBasePathProvider?.call() ?? apiBasePath).replaceFirst(
+      RegExp(r'/$'),
+      '',
+    );
     final response = await client
         .get(
           Uri.parse('$basePath/family/sync/manifest'),
-          headers: {'Accept': 'application/json', ...headers, ...?headersProvider?.call()},
+          headers: {
+            'Accept': 'application/json',
+            ...headers,
+            ...?headersProvider?.call(),
+          },
         )
         .timeout(const Duration(seconds: 60));
 
