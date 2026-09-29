@@ -19,12 +19,10 @@ class FamilySelectionBottomSheet extends ConsumerStatefulWidget {
   const FamilySelectionBottomSheet({super.key, required this.manifest});
   final FamilySyncManifest manifest;
   @override
-  ConsumerState<FamilySelectionBottomSheet> createState() =>
-      _FamilySelectionBottomSheetState();
+  ConsumerState<FamilySelectionBottomSheet> createState() => _FamilySelectionBottomSheetState();
 }
 
-class _FamilySelectionBottomSheetState
-    extends ConsumerState<FamilySelectionBottomSheet> {
+class _FamilySelectionBottomSheetState extends ConsumerState<FamilySelectionBottomSheet> {
   bool busy = false;
 
   Future<void> _run({String? albumId}) async {
@@ -34,9 +32,7 @@ class _FamilySelectionBottomSheetState
     if (busy ||
         identity == null ||
         selected.isEmpty ||
-        selected.any(
-          (asset) => asset is! RemoteAsset || asset.ownerId != identity.userId,
-        ))
+        selected.any((asset) => asset is! RemoteAsset || asset.ownerId != identity.userId))
       return;
     final ids = selected.cast<RemoteAsset>().map((asset) => asset.id).toSet().toList();
     if (albumId == null) {
@@ -45,42 +41,25 @@ class _FamilySelectionBottomSheetState
         builder: (dialog) => AlertDialog(
           title: const Text('Usuń z rodziny?'),
           content: Text(
-            'Przenieść ' +
-                ids.length.toString() +
-                ' zdjęć do galerii osobistej? Oryginały nie zostaną usunięte.',
+            'Przenieść ' + ids.length.toString() + ' zdjęć do galerii osobistej? Oryginały nie zostaną usunięte.',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialog, true),
-              child: const Text('Przenieś'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Anuluj')),
+            FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Przenieś')),
           ],
         ),
       );
-      if (confirmed != true ||
-          !mounted ||
-          currentFamilySyncIdentity(store) != identity)
-        return;
+      if (confirmed != true || !mounted || currentFamilySyncIdentity(store) != identity) return;
     }
     setState(() => busy = true);
     try {
       if (albumId != null) {
-        await ref
-            .read(familySyncApiRepositoryProvider)
-            .addPhotosToFamilyAlbum(albumId: albumId, assetIds: ids);
+        await ref.read(familySyncApiRepositoryProvider).addPhotosToFamilyAlbum(albumId: albumId, assetIds: ids);
       } else {
-        await ref
-            .read(familySyncApiRepositoryProvider)
-            .updatePublication(assetIds: ids, mode: 'private');
+        await ref.read(familySyncApiRepositoryProvider).updatePublication(assetIds: ids, mode: 'private');
         if (!mounted || currentFamilySyncIdentity(store) != identity) return;
         for (final id in ids) {
-          await ref
-              .read(familyPrivateVisibilityProvider)
-              .update(id, 'private', identity);
+          await ref.read(familyPrivateVisibilityProvider).update(id, 'private', identity);
         }
       }
       await ref.read(familySyncCacheServiceProvider).invalidate();
@@ -91,19 +70,15 @@ class _FamilySelectionBottomSheetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            albumId == null
-                ? 'Przeniesiono zdjęcia do osobistej.'
-                : 'Dodano zdjęcia do albumu rodzinnego.',
+            albumId == null ? 'Przeniesiono zdjęcia do osobistej.' : 'Dodano zdjęcia do albumu rodzinnego.',
           ),
         ),
       );
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nie udało się wykonać operacji. Spróbuj ponownie.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Nie udało się wykonać operacji. Spróbuj ponownie.')));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -111,9 +86,7 @@ class _FamilySelectionBottomSheetState
 
   Future<void> _chooseAlbum() async {
     if (widget.manifest.albums.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Brak albumów rodzinnych.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Brak albumów rodzinnych.')));
       return;
     }
     final album = await showModalBottomSheet<FamilySyncAlbum>(
@@ -125,10 +98,7 @@ class _FamilySelectionBottomSheetState
           children: [
             const ListTile(title: Text('Dodaj do albumu rodzinnego')),
             for (final album in widget.manifest.albums)
-              ListTile(
-                title: Text(album.name),
-                onTap: () => Navigator.pop(context, album),
-              ),
+              ListTile(title: Text(album.name), onTap: () => Navigator.pop(context, album)),
           ],
         ),
       ),
@@ -143,13 +113,12 @@ class _FamilySelectionBottomSheetState
     final ownSelection =
         identity != null &&
         selected.isNotEmpty &&
-        selected.every(
-          (asset) => asset is RemoteAsset && asset.ownerId == identity.userId,
-        );
+        selected.every((asset) => asset is RemoteAsset && asset.ownerId == identity.userId);
     return BaseBottomSheet(
-      initialChildSize: 0.23,
-      minChildSize: 0.23,
-      maxChildSize: 0.5,
+      initialChildSize: 0.35,
+      minChildSize: 0.28,
+      maxChildSize: 0.65,
+      wrapActions: true,
       shouldCloseOnMinExtent: false,
       actions: [
         const ShareActionButton(source: ActionSource.timeline),

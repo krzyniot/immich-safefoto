@@ -6,6 +6,7 @@ import 'package:immich_mobile/presentation/widgets/timeline/timeline.state.dart'
 
 class BaseBottomSheet extends ConsumerStatefulWidget {
   final List<Widget> actions;
+  final bool wrapActions;
   final DraggableScrollableController? controller;
   final List<Widget>? slivers;
   final Widget? footer;
@@ -20,6 +21,7 @@ class BaseBottomSheet extends ConsumerStatefulWidget {
   const BaseBottomSheet({
     super.key,
     required this.actions,
+    this.wrapActions = false,
     this.slivers,
     this.footer,
     this.controller,
@@ -86,10 +88,29 @@ class _BaseDraggableScrollableSheetState extends ConsumerState<BaseBottomSheet> 
                       SliverToBoxAdapter(
                         child: Column(
                           children: [
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: widget.actions),
-                            ),
+                            if (widget.wrapActions)
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final columns = constraints.maxWidth >= 600 ? 4 : 3;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: GridView.count(
+                                      crossAxisCount: columns,
+                                      mainAxisSpacing: 4,
+                                      crossAxisSpacing: 4,
+                                      childAspectRatio: constraints.maxWidth >= 600 ? 2.0 : 1.3,
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      children: widget.actions,
+                                    ),
+                                  );
+                                },
+                              )
+                            else
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: widget.actions),
+                              ),
                             const Divider(indent: 16, endIndent: 16),
                             const SizedBox(height: 16),
                           ],
