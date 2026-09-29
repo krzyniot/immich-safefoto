@@ -13,11 +13,11 @@ import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/family_sync_cache.service.dart';
 import 'package:immich_mobile/domain/services/family_private_visibility.service.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
-import 'package:immich_mobile/domain/services/timeline.service.dart';
 import 'package:immich_mobile/infrastructure/repositories/db.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/family_sync_api.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
-import 'package:immich_mobile/presentation/widgets/asset_viewer/family_publication_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/bottom_sheet/family_bulk_action.widget.dart';
+import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 
@@ -76,7 +76,7 @@ void main() {
     await db.close();
   });
 
-  Future<void> showButton(WidgetTester tester, String owner, {TimelineOrigin origin = TimelineOrigin.main}) async {
+  Future<void> showButton(WidgetTester tester, String owner, String mode) async {
     final service = FamilySyncCacheService(
       cache: cache,
       identity: () => currentFamilySyncIdentity(store),
@@ -100,68 +100,43 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          home: Scaffold(
-            body: FamilyPublicationButton(asset: photo(owner), origin: origin),
-          ),
+          home: Scaffold(body: FamilyBulkAction(mode: mode)),
         ),
       ),
     );
     await tester.pumpAndSettle();
+    ProviderScope.containerOf(
+      tester.element(find.byType(FamilyBulkAction)),
+    ).read(multiSelectProvider.notifier).selectAsset(photo(owner));
+    await tester.pumpAndSettle();
   }
 
-  testWidgets('owner can share a remote image without copying or deleting originals', (tester) async {
-    await showButton(tester, UserStub.admin.id);
-    await tester.tap(find.byTooltip('Widoczność w rodzinie'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Udostępnij rodzinie'));
-    await tester.pumpAndSettle();
-    expect(requests, 1);
-    expect(lastMode, 'share');
-    expect(cache.data, isNull);
-    expect(find.text('Zdjęcie udostępniono rodzinie.'), findsOneWidget);
-  });
-
-  testWidgets('failed publication leaves the old family cache untouched', (tester) async {
-    responseCode = 403;
-    await showButton(tester, UserStub.admin.id);
-    await tester.tap(find.byTooltip('Widoczność w rodzinie'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Udostępnij rodzinie'));
-    await tester.pumpAndSettle();
-    expect(requests, 1);
-    expect(cache.data, isNotNull);
-    expect(find.textContaining('Brak dostępu'), findsOneWidget);
-  });
-
-  testWidgets('owner can move a photo without deleting the phone original', (tester) async {
-    await showButton(tester, UserStub.admin.id);
-    await tester.tap(find.byTooltip('Widoczność w rodzinie'));
-    await tester.pumpAndSettle();
+  testWidgets('bulk move publishes only owned remote images and hides personal timeline', (tester) async {
+    await showButton(tester, UserStub.admin.id, 'move');
     await tester.tap(find.text('Przenieś do rodziny'));
     await tester.pumpAndSettle();
+    expect(find.text('Wybierz tylko własne zdjęcia zapisane w SafeFoto.'), findsNothing);
+    expect(find.text('Błąd połączenia. Sprawdź galerię przed ponowną próbą.'), findsNothing);
     expect(requests, 1);
     expect(lastMode, 'move');
     expect(cache.data, isNull);
     expect(store.tryGet(StoreKey.familyPrivateHiddenJson), contains(photo(UserStub.admin.id).id));
   });
 
-  testWidgets('family owner sees move to personal and withdrawal calls private', (tester) async {
-    await showButton(tester, UserStub.admin.id, origin: TimelineOrigin.family);
-    expect(find.text('Przenieś do osobistej'), findsOneWidget);
-    expect(find.text('Przenieś do rodziny'), findsNothing);
-    expect(find.text('Udostępnij rodzinie'), findsNothing);
-    await tester.tap(find.text('Przenieś do osobistej'));
+  testWidgets('bulk share retains personal timeline', (tester) async {
+    await showButton(tester, UserStub.admin.id, 'share');
+    await tester.tap(find.text('Udostępnij rodzinie'));
     await tester.pumpAndSettle();
+    expect(find.text('Wybierz tylko własne zdjęcia zapisane w SafeFoto.'), findsNothing);
+    expect(find.text('Błąd połączenia. Sprawdź galerię przed ponowną próbą.'), findsNothing);
     expect(requests, 1);
-    expect(lastMode, 'private');
-    expect(cache.data, isNull);
+    expect(lastMode, 'share');
+    expect(store.tryGet(StoreKey.familyPrivateHiddenJson) ?? '', isNot(contains(photo(UserStub.admin.id).id)));
   });
 
-  testWidgets('another member cannot publish someone else’s image even if button is invoked directly', (tester) async {
-    await showButton(tester, 'different-owner');
-    await tester.tap(find.byTooltip('Widoczność w rodzinie'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Udostępnij rodzinie'));
+  testWidgets('bulk action refuses images owned by someone else', (tester) async {
+    await showButton(tester, 'different-owner', 'move');
+    await tester.tap(find.text('Przenieś do rodziny'));
     await tester.pumpAndSettle();
     expect(requests, 0);
     expect(cache.data, isNotNull);

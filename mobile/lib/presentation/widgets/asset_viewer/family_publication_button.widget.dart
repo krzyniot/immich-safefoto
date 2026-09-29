@@ -96,27 +96,36 @@ class _FamilyPublicationButtonState extends ConsumerState<FamilyPublicationButto
         child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
+    if (widget.origin == TimelineOrigin.family) {
+      return TextButton.icon(
+        onPressed: () => _publish('private'),
+        icon: const Icon(Icons.drive_file_move_outlined, color: Colors.white),
+        label: const Text('Przenieś do osobistej', style: TextStyle(color: Colors.white)),
+      );
+    }
     return PopupMenuButton<String>(
-      tooltip: widget.origin == TimelineOrigin.family ? 'Przenieś do osobistej' : 'Widoczność w rodzinie',
-      icon: Icon(widget.origin == TimelineOrigin.family ? Icons.drive_file_move_outlined : Icons.groups_outlined),
+      tooltip: 'Widoczność w rodzinie',
+      icon: const Icon(Icons.groups_outlined),
       onSelected: _publish,
       itemBuilder: (_) => [
-        if (widget.origin != TimelineOrigin.family) const PopupMenuItem(
-          value: 'share',
-          child: ListTile(
-            leading: Icon(Icons.people_outline),
-            title: Text('Udostępnij rodzinie'),
-            subtitle: Text('Zdjęcie pozostanie także w Moich zdjęciach'),
+        if (widget.origin != TimelineOrigin.family)
+          const PopupMenuItem(
+            value: 'share',
+            child: ListTile(
+              leading: Icon(Icons.people_outline),
+              title: Text('Udostępnij rodzinie'),
+              subtitle: Text('Zdjęcie pozostanie także w Moich zdjęciach'),
+            ),
           ),
-        ),
-        if (widget.origin != TimelineOrigin.family) const PopupMenuItem(
-          value: 'move',
-          child: ListTile(
-            leading: Icon(Icons.drive_file_move_outlined),
-            title: Text('Przenieś do rodziny'),
-            subtitle: Text('Ukryj na prywatnej osi, bez kopiowania pliku'),
+        if (widget.origin != TimelineOrigin.family)
+          const PopupMenuItem(
+            value: 'move',
+            child: ListTile(
+              leading: Icon(Icons.drive_file_move_outlined),
+              title: Text('Przenieś do rodziny'),
+              subtitle: Text('Ukryj na prywatnej osi, bez kopiowania pliku'),
+            ),
           ),
-        ),
         if (widget.origin == TimelineOrigin.family)
           const PopupMenuItem(
             value: 'private',
