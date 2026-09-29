@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 // ignore_for_file: implementation_imports
 
 import 'package:easy_localization/src/easy_localization_controller.dart';
@@ -18,7 +20,8 @@ Future<bool> loadTranslations() async {
     path: translationsPath,
     useOnlyLangCode: false,
     onLoadError: (e) => dPrint(() => e.toString()),
-    fallbackLocale: locales.values.first,
+    fallbackLocale: const Locale('pl'),
+    startLocale: const Locale('pl'),
   );
 
   await controller.loadTranslations();

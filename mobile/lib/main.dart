@@ -295,7 +295,8 @@ class MainWidget extends StatelessWidget {
       supportedLocales: locales.values.toList(),
       path: translationsPath,
       useFallbackTranslations: true,
-      fallbackLocale: locales.values.first,
+      fallbackLocale: const Locale('pl'),
+      startLocale: const Locale('pl'),
       assetLoader: const CodegenLoader(),
       child: const ImmichApp(),
     );

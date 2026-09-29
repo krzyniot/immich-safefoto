@@ -7,6 +7,7 @@ import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/asset_debug.action.dart';
 import 'package:immich_mobile/presentation/actions/timeline.action.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/archive_action_button.widget.dart';
+import 'package:immich_mobile/presentation/widgets/action_buttons/base_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/bulk_tag_assets_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/delete_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/action_buttons/delete_local_action_button.widget.dart';
@@ -87,11 +88,23 @@ class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
 
     return BaseBottomSheet(
       controller: sheetController,
-      initialChildSize: widget.minChildSize ?? 0.15,
+      initialChildSize: widget.minChildSize ?? 0.23,
       minChildSize: widget.minChildSize,
       maxChildSize: 0.85,
       shouldCloseOnMinExtent: false,
       actions: [
+        if (multiselect.hasRemote)
+          BaseActionButton(
+            label: 'add_to_album'.tr(),
+            iconData: Icons.photo_album_outlined,
+            onPressed: () {
+              sheetController.animateTo(
+                0.72,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+              );
+            },
+          ),
         ...actions.map((action) => ActionColumnButtonWidget(action: TimelineAction(action: action))),
         const ShareActionButton(source: ActionSource.timeline),
         if (multiselect.hasRemote) ...[
