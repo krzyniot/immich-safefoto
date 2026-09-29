@@ -76,7 +76,7 @@ void main() {
     await db.close();
   });
 
-  Future<void> showButton(WidgetTester tester, String owner) async {
+  Future<void> showButton(WidgetTester tester, String owner, {TimelineOrigin origin = TimelineOrigin.main}) async {
     final service = FamilySyncCacheService(
       cache: cache,
       identity: () => currentFamilySyncIdentity(store),
@@ -101,7 +101,7 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: FamilyPublicationButton(asset: photo(owner), origin: TimelineOrigin.main),
+            body: FamilyPublicationButton(asset: photo(owner), origin: origin),
           ),
         ),
       ),
@@ -143,6 +143,21 @@ void main() {
     expect(lastMode, 'move');
     expect(cache.data, isNull);
     expect(store.tryGet(StoreKey.familyPrivateHiddenJson), contains(photo(UserStub.admin.id).id));
+  });
+
+  testWidgets('family owner sees move to personal and withdrawal calls private', (tester) async {
+    await showButton(tester, UserStub.admin.id, origin: TimelineOrigin.family);
+    expect(find.byTooltip('Przenieś do osobistej'), findsOneWidget);
+    await tester.tap(find.byTooltip('Przenieś do osobistej'));
+    await tester.pumpAndSettle();
+    expect(find.text('Przenieś do osobistej'), findsOneWidget);
+    expect(find.text('Przenieś do rodziny'), findsNothing);
+    expect(find.text('Udostępnij rodzinie'), findsNothing);
+    await tester.tap(find.text('Przenieś do osobistej'));
+    await tester.pumpAndSettle();
+    expect(requests, 1);
+    expect(lastMode, 'private');
+    expect(cache.data, isNull);
   });
 
   testWidgets('another member cannot publish someone else’s image even if button is invoked directly', (tester) async {

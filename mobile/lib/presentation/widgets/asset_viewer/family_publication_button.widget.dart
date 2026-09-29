@@ -97,11 +97,11 @@ class _FamilyPublicationButtonState extends ConsumerState<FamilyPublicationButto
       );
     }
     return PopupMenuButton<String>(
-      tooltip: 'Widoczność w rodzinie',
-      icon: const Icon(Icons.groups_outlined),
+      tooltip: widget.origin == TimelineOrigin.family ? 'Przenieś do osobistej' : 'Widoczność w rodzinie',
+      icon: Icon(widget.origin == TimelineOrigin.family ? Icons.drive_file_move_outlined : Icons.groups_outlined),
       onSelected: _publish,
       itemBuilder: (_) => [
-        const PopupMenuItem(
+        if (widget.origin != TimelineOrigin.family) const PopupMenuItem(
           value: 'share',
           child: ListTile(
             leading: Icon(Icons.people_outline),
@@ -109,7 +109,7 @@ class _FamilyPublicationButtonState extends ConsumerState<FamilyPublicationButto
             subtitle: Text('Zdjęcie pozostanie także w Moich zdjęciach'),
           ),
         ),
-        const PopupMenuItem(
+        if (widget.origin != TimelineOrigin.family) const PopupMenuItem(
           value: 'move',
           child: ListTile(
             leading: Icon(Icons.drive_file_move_outlined),
@@ -122,8 +122,8 @@ class _FamilyPublicationButtonState extends ConsumerState<FamilyPublicationButto
             value: 'private',
             child: ListTile(
               leading: Icon(Icons.lock_outline),
-              title: Text('Wycofaj z galerii rodziny'),
-              subtitle: Text('Inne udostępnienia pozostają bez zmian'),
+              title: Text('Przenieś do osobistej'),
+              subtitle: Text('Usuń z galerii rodziny i przywróć do Moich zdjęć'),
             ),
           ),
       ],
