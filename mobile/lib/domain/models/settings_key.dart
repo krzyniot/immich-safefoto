@@ -14,6 +14,8 @@ enum SettingsKey<T> {
   themeMode<ThemeMode>(codec: _EnumCodec(ThemeMode.values)),
   themeDynamic<bool>(),
   themeColorfulInterface<bool>(),
+  themeIconStyle<int>(),
+  themeBackgroundStyle<int>(),
 
   // Image
   imagePreferRemote<bool>(),

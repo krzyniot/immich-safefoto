@@ -6,12 +6,16 @@ class ThemeConfig {
   final ImmichColorPreset primaryColor;
   final bool dynamicTheme;
   final bool colorfulInterface;
+  final int iconStyle;
+  final int backgroundStyle;
 
   const ThemeConfig({
-    this.mode = .system,
-    this.primaryColor = .indigo,
+    this.mode = .dark,
+    this.primaryColor = .deepPurple,
     this.dynamicTheme = false,
-    this.colorfulInterface = true,
+    this.colorfulInterface = false,
+    this.iconStyle = 0,
+    this.backgroundStyle = 0,
   });
 
   ThemeConfig copyWith({
@@ -19,11 +23,15 @@ class ThemeConfig {
     ImmichColorPreset? primaryColor,
     bool? dynamicTheme,
     bool? colorfulInterface,
+    int? iconStyle,
+    int? backgroundStyle,
   }) => .new(
     mode: mode ?? this.mode,
     primaryColor: primaryColor ?? this.primaryColor,
     dynamicTheme: dynamicTheme ?? this.dynamicTheme,
     colorfulInterface: colorfulInterface ?? this.colorfulInterface,
+    iconStyle: iconStyle ?? this.iconStyle,
+    backgroundStyle: backgroundStyle ?? this.backgroundStyle,
   );
 
   @override
@@ -33,10 +41,12 @@ class ThemeConfig {
           other.mode == mode &&
           other.primaryColor == primaryColor &&
           other.dynamicTheme == dynamicTheme &&
-          other.colorfulInterface == colorfulInterface);
+          other.colorfulInterface == colorfulInterface &&
+          other.iconStyle == iconStyle &&
+          other.backgroundStyle == backgroundStyle);
 
   @override
-  int get hashCode => Object.hash(mode, primaryColor, dynamicTheme, colorfulInterface);
+  int get hashCode => Object.hash(mode, primaryColor, dynamicTheme, colorfulInterface, iconStyle, backgroundStyle);
 
   @override
   String toString() =>

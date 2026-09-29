@@ -47,6 +47,8 @@ class ThemeSetting extends HookConsumerWidget {
       colorfulInterface.value = useColorfulInterface;
     }
 
+    final appearance = ref.watch(appConfigProvider.select((config) => config.theme));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -66,6 +68,65 @@ class ThemeSetting extends HookConsumerWidget {
             onChanged: onThemeChange,
           ),
         const PrimaryColorSetting(),
+        const ListTile(
+          title: Text('Wygląd SafeFoto'),
+          subtitle: Text('Wybierz styl ikon i tło aplikacji'),
+          leading: Icon(Icons.auto_awesome_outlined),
+        ),
+        ListTile(
+          title: const Text('Zestaw ikon'),
+          subtitle: Text(const ['Klasyczny', 'Zaokrąglony', 'Wyrazisty'][appearance.iconStyle.clamp(0, 2)]),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            showDragHandle: true,
+            builder: (sheetContext) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var index = 0; index < 3; index++)
+                    ListTile(
+                      leading: Icon([Icons.photo_outlined, Icons.photo_rounded, Icons.photo_library_rounded][index]),
+                      title: Text(const ['Klasyczny', 'Zaokrąglony', 'Wyrazisty'][index]),
+                      trailing: appearance.iconStyle == index ? const Icon(Icons.check) : null,
+                      onTap: () {
+                        ref.read(settingsProvider).write(.themeIconStyle, index);
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        ListTile(
+          title: const Text('Tło aplikacji'),
+          subtitle: Text(const ['Grafitowe', 'Głębokie', 'Złoty akcent'][appearance.backgroundStyle.clamp(0, 2)]),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            showDragHandle: true,
+            builder: (sheetContext) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var index = 0; index < 3; index++)
+                    ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const [Color(0xFF171A25), Color(0xFF0B1020), Color(0xFF3C2D1A)][index],
+                      ),
+                      title: Text(const ['Grafitowe', 'Głębokie', 'Złoty akcent'][index]),
+                      trailing: appearance.backgroundStyle == index ? const Icon(Icons.check) : null,
+                      onTap: () {
+                        ref.read(settingsProvider).write(.themeBackgroundStyle, index);
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
         SettingsSwitchListTile(
           valueNotifier: colorfulInterface,
           title: "theme_setting_colorful_interface_title".t(context: context),

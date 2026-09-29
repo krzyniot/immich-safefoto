@@ -257,6 +257,17 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final immichTheme = ref.watch(immichThemeProvider);
+    final appearance = ref.watch(appConfigProvider.select((config) => config.theme));
+    final darkBackground = const [
+      Color(0xFF171A25),
+      Color(0xFF0B1020),
+      Color(0xFF3C2D1A),
+    ][appearance.backgroundStyle.clamp(0, 2)];
+    final darkScheme = immichTheme.dark.copyWith(
+      surface: darkBackground,
+      surfaceContainer: Color.lerp(darkBackground, Colors.white, 0.045)!,
+      surfaceContainerHigh: Color.lerp(darkBackground, Colors.white, 0.075)!,
+    );
 
     return ProviderScope(
       overrides: [localeProvider.overrideWithValue(context.locale)],
@@ -268,7 +279,7 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
         supportedLocales: context.supportedLocales,
         locale: context.locale,
         themeMode: ref.watch(appConfigProvider.select((config) => config.theme.mode)),
-        darkTheme: getThemeData(colorScheme: immichTheme.dark, locale: context.locale),
+        darkTheme: getThemeData(colorScheme: darkScheme, locale: context.locale),
         theme: getThemeData(colorScheme: immichTheme.light, locale: context.locale),
         builder: (context, child) => ImmichTranslationProvider(
           translations: ImmichTranslations(

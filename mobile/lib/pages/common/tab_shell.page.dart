@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import "package:immich_mobile/providers/infrastructure/settings.provider.dart";
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
@@ -32,33 +33,66 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
   Widget build(BuildContext context) {
     final isScreenLandscape = context.orientation == Orientation.landscape;
     final isReadonlyModeEnabled = ref.watch(readonlyModeProvider);
+    final iconStyle = ref.watch(appConfigProvider.select((config) => config.theme.iconStyle));
+    final rounded = iconStyle == 1;
+    final bold = iconStyle == 2;
 
     final navigationDestinations = [
       NavigationDestination(
         label: 'my_photos'.tr(),
-        icon: const Icon(Icons.photo_library_outlined),
+        icon: Icon(
+          bold
+              ? Icons.collections_rounded
+              : rounded
+              ? Icons.photo_library_rounded
+              : Icons.photo_library_outlined,
+        ),
         selectedIcon: Icon(Icons.photo_library, color: context.primaryColor),
       ),
       NavigationDestination(
         label: 'family_photos'.tr(),
-        icon: const Icon(Icons.people_outline),
+        icon: Icon(
+          bold
+              ? Icons.groups_rounded
+              : rounded
+              ? Icons.people_rounded
+              : Icons.people_outline,
+        ),
         selectedIcon: Icon(Icons.people, color: context.primaryColor),
       ),
       NavigationDestination(
         label: 'search'.tr(),
-        icon: const Icon(Icons.search_rounded),
+        icon: Icon(
+          bold
+              ? Icons.manage_search_rounded
+              : rounded
+              ? Icons.search_rounded
+              : Icons.search_outlined,
+        ),
         selectedIcon: Icon(Icons.search, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,
       ),
       NavigationDestination(
         label: 'albums'.tr(),
-        icon: const Icon(Icons.photo_album_outlined),
+        icon: Icon(
+          bold
+              ? Icons.collections_bookmark_rounded
+              : rounded
+              ? Icons.photo_album_rounded
+              : Icons.photo_album_outlined,
+        ),
         selectedIcon: Icon(Icons.photo_album_rounded, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,
       ),
       NavigationDestination(
-        label: 'library'.tr(),
-        icon: const Icon(Icons.space_dashboard_outlined),
+        label: 'Więcej',
+        icon: Icon(
+          bold
+              ? Icons.apps_rounded
+              : rounded
+              ? Icons.grid_view_rounded
+              : Icons.more_horiz_outlined,
+        ),
         selectedIcon: Icon(Icons.space_dashboard_rounded, color: context.primaryColor),
         enabled: !isReadonlyModeEnabled,
       ),
