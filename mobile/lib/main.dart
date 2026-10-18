@@ -258,12 +258,16 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
     final router = ref.watch(appRouterProvider);
     final immichTheme = ref.watch(immichThemeProvider);
     final appearance = ref.watch(appConfigProvider.select((config) => config.theme));
-    final darkBackground = const [Color(0xFF171A25), Color(0xFF0B1020), Color(0xFF3C2D1A)][appearance.backgroundStyle.clamp(0, 2)];
-    final darkScheme = immichTheme.dark.copyWith(
-      surface: darkBackground,
-      surfaceContainer: Color.lerp(darkBackground, Colors.white, 0.045)!,
-      surfaceContainerHigh: Color.lerp(darkBackground, Colors.white, 0.075)!,
+    final backgroundIndex = appearance.backgroundStyle.clamp(0, 2);
+    final darkBackground = const [Color(0xFF171A25), Color(0xFF0B1020), Color(0xFF241F19)][backgroundIndex];
+    final lightBackground = const [Color(0xFFF5F5FA), Color(0xFFEEF3FC), Color(0xFFFFF8EC)][backgroundIndex];
+    ColorScheme withBackground(ColorScheme scheme, Color background) => scheme.copyWith(
+      surface: background,
+      surfaceContainer: Color.lerp(background, scheme.onSurface, 0.045)!,
+      surfaceContainerHigh: Color.lerp(background, scheme.onSurface, 0.075)!,
     );
+    final darkScheme = withBackground(immichTheme.dark, darkBackground);
+    final lightScheme = withBackground(immichTheme.light, lightBackground);
 
     return ProviderScope(
       overrides: [localeProvider.overrideWithValue(context.locale)],
@@ -276,7 +280,7 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
         locale: context.locale,
         themeMode: ref.watch(appConfigProvider.select((config) => config.theme.mode)),
         darkTheme: getThemeData(colorScheme: darkScheme, locale: context.locale),
-        theme: getThemeData(colorScheme: immichTheme.light, locale: context.locale),
+        theme: getThemeData(colorScheme: lightScheme, locale: context.locale),
         builder: (context, child) => ImmichTranslationProvider(
           translations: ImmichTranslations(
             submit: "submit".t(context: context),

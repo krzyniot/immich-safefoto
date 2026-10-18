@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:immich_mobile/widgets/common/safefoto_icon.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
@@ -75,26 +76,30 @@ class ThemeSetting extends HookConsumerWidget {
         ),
         ListTile(
           title: const Text('Zestaw ikon'),
-          subtitle: Text(const ['Klasyczny', 'Zaokrąglony', 'Wyrazisty'][appearance.iconStyle.clamp(0, 2)]),
+          subtitle: Text(
+            const ['SafeFoto Classic', 'SafeFoto Rounded', 'SafeFoto Glow'][appearance.iconStyle.clamp(0, 2)],
+          ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => showModalBottomSheet<void>(
             context: context,
             showDragHandle: true,
             builder: (sheetContext) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var index = 0; index < 3; index++)
-                    ListTile(
-                      leading: Icon([Icons.photo_outlined, Icons.photo_rounded, Icons.photo_library_rounded][index]),
-                      title: Text(const ['Klasyczny', 'Zaokrąglony', 'Wyrazisty'][index]),
-                      trailing: appearance.iconStyle == index ? const Icon(Icons.check) : null,
-                      onTap: () {
-                        ref.read(settingsProvider).write(.themeIconStyle, index);
-                        Navigator.pop(sheetContext);
-                      },
-                    ),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var index = 0; index < 3; index++)
+                      ListTile(
+                        leading: SafeFotoIcon(symbol: SafeFotoSymbol.photos, style: index, active: true),
+                        title: Text(const ['SafeFoto Classic', 'SafeFoto Rounded', 'SafeFoto Glow'][index]),
+                        trailing: appearance.iconStyle == index ? const Icon(Icons.check) : null,
+                        onTap: () {
+                          ref.read(settingsProvider).write(.themeIconStyle, index);
+                          Navigator.pop(sheetContext);
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -107,22 +112,24 @@ class ThemeSetting extends HookConsumerWidget {
             context: context,
             showDragHandle: true,
             builder: (sheetContext) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var index = 0; index < 3; index++)
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const [Color(0xFF171A25), Color(0xFF0B1020), Color(0xFF3C2D1A)][index],
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var index = 0; index < 3; index++)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const [Color(0xFF171A25), Color(0xFF0B1020), Color(0xFF3C2D1A)][index],
+                        ),
+                        title: Text(const ['Grafitowe', 'Głębokie', 'Złoty akcent'][index]),
+                        trailing: appearance.backgroundStyle == index ? const Icon(Icons.check) : null,
+                        onTap: () {
+                          ref.read(settingsProvider).write(.themeBackgroundStyle, index);
+                          Navigator.pop(sheetContext);
+                        },
                       ),
-                      title: Text(const ['Grafitowe', 'Głębokie', 'Złoty akcent'][index]),
-                      trailing: appearance.backgroundStyle == index ? const Icon(Icons.check) : null,
-                      onTap: () {
-                        ref.read(settingsProvider).write(.themeBackgroundStyle, index);
-                        Navigator.pop(sheetContext);
-                      },
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

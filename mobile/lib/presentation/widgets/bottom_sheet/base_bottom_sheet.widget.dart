@@ -98,7 +98,8 @@ class _BaseDraggableScrollableSheetState extends ConsumerState<BaseBottomSheet> 
                                       crossAxisCount: columns,
                                       mainAxisSpacing: 4,
                                       crossAxisSpacing: 4,
-                                      childAspectRatio: constraints.maxWidth >= 600 ? 2.0 : 1.3,
+                                      mainAxisExtent: 64 + 3 * MediaQuery.textScalerOf(context).scale(14) * 1.5,
+                                      primary: false, // Never attach action tiles to the gallery scroll controller.
                                       shrinkWrap: true,
                                       physics: const NeverScrollableScrollPhysics(),
                                       children: widget.actions,

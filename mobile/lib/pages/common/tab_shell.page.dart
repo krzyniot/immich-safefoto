@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
-import "package:immich_mobile/providers/infrastructure/settings.provider.dart";
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
+import 'package:immich_mobile/widgets/common/safefoto_icon.dart';
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
@@ -34,116 +35,83 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
     final isScreenLandscape = context.orientation == Orientation.landscape;
     final isReadonlyModeEnabled = ref.watch(readonlyModeProvider);
     final iconStyle = ref.watch(appConfigProvider.select((config) => config.theme.iconStyle));
-    final rounded = iconStyle == 1;
-    final bold = iconStyle == 2;
-
+    final reduceMotion = MediaQuery.disableAnimationsOf(context) || MediaQuery.accessibleNavigationOf(context);
     final navigationDestinations = [
-      NavigationDestination(
-        label: 'my_photos'.tr(),
-        icon: Icon(
-          bold
-              ? Icons.collections_rounded
-              : rounded
-              ? Icons.photo_library_rounded
-              : Icons.photo_library_outlined,
+      for (var i = 0; i < 5; i++)
+        NavigationDestination(
+          label: ['my_photos'.tr(), 'family_photos'.tr(), 'search'.tr(), 'albums'.tr(), 'Więcej'][i],
+          icon: SafeFotoIcon(symbol: SafeFotoSymbol.values[i], style: iconStyle),
+          selectedIcon: SafeFotoIcon(symbol: SafeFotoSymbol.values[i], style: iconStyle, active: true),
+          enabled: i < 2 || !isReadonlyModeEnabled,
         ),
-        selectedIcon: Icon(Icons.photo_library, color: context.primaryColor),
-      ),
-      NavigationDestination(
-        label: 'family_photos'.tr(),
-        icon: Icon(
-          bold
-              ? Icons.groups_rounded
-              : rounded
-              ? Icons.people_rounded
-              : Icons.people_outline,
-        ),
-        selectedIcon: Icon(Icons.people, color: context.primaryColor),
-      ),
-      NavigationDestination(
-        label: 'search'.tr(),
-        icon: Icon(
-          bold
-              ? Icons.manage_search_rounded
-              : rounded
-              ? Icons.search_rounded
-              : Icons.search_outlined,
-        ),
-        selectedIcon: Icon(Icons.search, color: context.primaryColor),
-        enabled: !isReadonlyModeEnabled,
-      ),
-      NavigationDestination(
-        label: 'albums'.tr(),
-        icon: Icon(
-          bold
-              ? Icons.collections_bookmark_rounded
-              : rounded
-              ? Icons.photo_album_rounded
-              : Icons.photo_album_outlined,
-        ),
-        selectedIcon: Icon(Icons.photo_album_rounded, color: context.primaryColor),
-        enabled: !isReadonlyModeEnabled,
-      ),
-      NavigationDestination(
-        label: 'Więcej',
-        icon: Icon(
-          bold
-              ? Icons.apps_rounded
-              : rounded
-              ? Icons.grid_view_rounded
-              : Icons.more_horiz_outlined,
-        ),
-        selectedIcon: Icon(Icons.space_dashboard_rounded, color: context.primaryColor),
-        enabled: !isReadonlyModeEnabled,
-      ),
     ];
 
     Widget navigationRail(TabsRouter tabsRouter) {
       return NavigationRail(
         extended: _railExpanded,
+        scrollable: true,
         minWidth: 64,
         minExtendedWidth: 210,
         leading: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeInOutCubic,
-              width: _railExpanded ? 190 : 54,
-              height: 46,
-              alignment: Alignment.center,
-              child: _railExpanded
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset('assets/safefoto-logo.png', width: 30, height: 30),
-                        const SizedBox(width: 8),
-                        Text(
-                          'SafeFoto',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            Builder(
+              builder: (railContext) {
+                final animation = NavigationRail.extendedAnimation(railContext);
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, _) {
+                    final progress = reduceMotion ? (_railExpanded ? 1.0 : 0.0) : animation.value;
+                    return SizedBox(
+                      width: 54 + 136 * progress,
+                      height: 46,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          minWidth: 190,
+                          maxWidth: 190,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 54,
+                                child: Image.asset('assets/safefoto-logo.png', width: 32, height: 32),
+                              ),
+                              Opacity(
+                                opacity: progress,
+                                child: Text(
+                                  'SafeFoto',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    )
-                  : Image.asset('assets/safefoto-logo.png', width: 32, height: 32),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             IconButton(
               key: const ValueKey('safefoto_navigation_toggle'),
               tooltip: _railExpanded ? 'Zwiń menu' : 'Rozwiń menu',
-              icon: Icon(_railExpanded ? Icons.menu_open_rounded : Icons.menu_rounded),
+              icon: SafeFotoIcon(symbol: SafeFotoSymbol.menu, style: iconStyle, active: _railExpanded),
               onPressed: () => setState(() => _railExpanded = !_railExpanded),
             ),
           ],
         ),
-        destinations: navigationDestinations
-            .map(
-              (e) => NavigationRailDestination(
-                icon: _AnimatedNavIcon(icon: e.icon, selected: false),
-                label: Text(e.label),
-                selectedIcon: _AnimatedNavIcon(icon: e.selectedIcon ?? e.icon, selected: true),
-                disabled: !e.enabled,
+        destinations: [
+          for (var i = 0; i < navigationDestinations.length; i++)
+            NavigationRailDestination(
+              icon: SafeFotoIcon(
+                symbol: SafeFotoSymbol.values[i],
+                style: iconStyle,
+                active: tabsRouter.activeIndex == i,
               ),
-            )
-            .toList(),
+              label: Text(navigationDestinations[i].label),
+              disabled: !navigationDestinations[i].enabled,
+            ),
+        ],
         onDestinationSelected: (index) => _onNavigationSelected(tabsRouter, index, ref),
         selectedIndex: tabsRouter.activeIndex,
         labelType: NavigationRailLabelType.none,
@@ -159,7 +127,7 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
         DriftAlbumsRoute(),
         DriftLibraryRoute(),
       ],
-      duration: const Duration(milliseconds: 600),
+      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 240),
       transitionBuilder: (context, child, animation) => FadeTransition(opacity: animation, child: child),
       builder: (context, child) {
         final tabsRouter = AutoTabsRouter.of(context);
@@ -168,20 +136,18 @@ class _TabShellPageState extends ConsumerState<TabShellPage> {
           onPopInvokedWithResult: (didPop, _) => !didPop ? tabsRouter.setActiveIndex(kPhotoTabIndex) : null,
           child: Scaffold(
             resizeToAvoidBottomInset: false,
-            body: isScreenLandscape
-                ? Row(
-                    children: [
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeInOutCubic,
-                        alignment: Alignment.centerLeft,
-                        child: navigationRail(tabsRouter),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(child: child),
-                    ],
-                  )
-                : child,
+            // Keep the gallery at the same element location during rotation.
+            body: Row(
+              children: [
+                if (isScreenLandscape)
+                  MediaQuery(
+                    data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
+                    child: navigationRail(tabsRouter),
+                  ),
+                if (isScreenLandscape) const VerticalDivider(width: 1),
+                Expanded(key: const ValueKey('safefoto_tab_content'), child: child),
+              ],
+            ),
             bottomNavigationBar: _BottomNavigationBar(tabsRouter: tabsRouter, destinations: navigationDestinations),
           ),
         );
@@ -272,32 +238,18 @@ class _BottomNavigationBarState extends ConsumerState<_BottomNavigationBar> {
     return NavigationBar(
       selectedIndex: widget.tabsRouter.activeIndex,
       onDestinationSelected: (index) => _onNavigationSelected(widget.tabsRouter, index, ref),
-      destinations: widget.destinations.map((destination) {
-        return NavigationDestination(
-          label: destination.label,
-          enabled: destination.enabled,
-          icon: _AnimatedNavIcon(icon: destination.icon, selected: false),
-          selectedIcon: _AnimatedNavIcon(icon: destination.selectedIcon ?? destination.icon, selected: true),
-        );
-      }).toList(),
-    );
-  }
-}
-
-/// Gentle motion on selection without moving the surrounding navigation layout.
-class _AnimatedNavIcon extends StatelessWidget {
-  const _AnimatedNavIcon({required this.icon, required this.selected});
-
-  final Widget icon;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: selected ? 1.12 : 1,
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutBack,
-      child: AnimatedOpacity(opacity: selected ? 1 : 0.82, duration: const Duration(milliseconds: 240), child: icon),
+      destinations: [
+        for (var i = 0; i < widget.destinations.length; i++)
+          NavigationDestination(
+            label: widget.destinations[i].label,
+            enabled: widget.destinations[i].enabled,
+            icon: SafeFotoIcon(
+              symbol: SafeFotoSymbol.values[i],
+              style: (widget.destinations[i].icon as SafeFotoIcon).style,
+              active: widget.tabsRouter.activeIndex == i,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -27,7 +27,7 @@ void main() {
 
   group('defaults', () {
     test('appConfig returns key defaults when DB is empty', () {
-      expect(sut.appConfig.theme.mode, ThemeMode.system);
+      expect(sut.appConfig.theme.mode, ThemeMode.dark);
     });
 
     test('appConfig returns key defaults when DB is empty', () {
@@ -35,10 +35,26 @@ void main() {
     });
   });
 
+  test('appearance choices survive repository reload independently', () async {
+    for (var mode in ThemeMode.values) {
+      for (var icon = 0; icon < 3; icon++) {
+        for (var background = 0; background < 3; background++) {
+          await sut.write(.themeMode, mode);
+          await sut.write(.themeIconStyle, icon);
+          await sut.write(.themeBackgroundStyle, background);
+          await sut.refresh();
+          expect(sut.appConfig.theme.mode, mode);
+          expect(sut.appConfig.theme.iconStyle, icon);
+          expect(sut.appConfig.theme.backgroundStyle, background);
+        }
+      }
+    }
+  });
+
   group('write', () {
     test('persists a value and reflects it in the composed view', () async {
-      await sut.write(.themeMode, ThemeMode.dark);
-      expect(sut.appConfig.theme.mode, ThemeMode.dark);
+      await sut.write(.themeMode, ThemeMode.system);
+      expect(sut.appConfig.theme.mode, ThemeMode.system);
     });
 
     test('persists across domains independently', () async {
@@ -49,11 +65,11 @@ void main() {
     });
 
     test('removes the row and reverts to default', () async {
-      await sut.write(.themeMode, ThemeMode.dark);
-      expect(sut.appConfig.theme.mode, ThemeMode.dark);
-
       await sut.write(.themeMode, ThemeMode.system);
       expect(sut.appConfig.theme.mode, ThemeMode.system);
+
+      await sut.write(.themeMode, ThemeMode.dark);
+      expect(sut.appConfig.theme.mode, ThemeMode.dark);
 
       final rows = await ctx.db.select(ctx.db.settingsEntity).get();
       expect(rows, isEmpty);
@@ -102,26 +118,26 @@ void main() {
           .insert(
             SettingsEntityCompanion.insert(
               key: SettingsKey.themeMode.name,
-              value: .new(ThemeMode.dark.name),
+              value: .new(ThemeMode.system.name),
               updatedAt: .new(DateTime.now()),
             ),
           );
 
       // Cache hasn't seen this row yet — view still returns the default.
-      expect(sut.appConfig.theme.mode, ThemeMode.system);
+      expect(sut.appConfig.theme.mode, ThemeMode.dark);
 
       await SettingsRepository.instance.refresh();
-      expect(sut.appConfig.theme.mode, ThemeMode.dark);
+      expect(sut.appConfig.theme.mode, ThemeMode.system);
     });
 
     test('drops cached values for rows that were deleted out from under the repo', () async {
-      await sut.write(.themeMode, ThemeMode.dark);
+      await sut.write(.themeMode, ThemeMode.system);
       // Wipe the row directly. Cache still holds the old value.
       await ctx.db.delete(ctx.db.settingsEntity).go();
-      expect(sut.appConfig.theme.mode, ThemeMode.dark);
+      expect(sut.appConfig.theme.mode, ThemeMode.system);
 
       await SettingsRepository.instance.refresh();
-      expect(sut.appConfig.theme.mode, ThemeMode.system);
+      expect(sut.appConfig.theme.mode, ThemeMode.dark);
     });
 
     test('skips rows whose key is unknown to SettingsKey', () async {
@@ -136,14 +152,14 @@ void main() {
           );
 
       await SettingsRepository.instance.refresh();
-      expect(sut.appConfig.theme.mode, ThemeMode.system);
+      expect(sut.appConfig.theme.mode, ThemeMode.dark);
     });
   });
 
   group('watch', () {
     test('watchAppConfig emits the new value after a write', () async {
-      final expectation = expectLater(sut.watchConfig().map((c) => c.theme.mode), emitsThrough(ThemeMode.dark));
-      await sut.write(SettingsKey.themeMode, ThemeMode.dark);
+      final expectation = expectLater(sut.watchConfig().map((c) => c.theme.mode), emitsThrough(ThemeMode.system));
+      await sut.write(SettingsKey.themeMode, ThemeMode.system);
       await expectation;
     });
 

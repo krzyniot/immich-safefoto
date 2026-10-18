@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
+import 'package:immich_mobile/widgets/common/safefoto_icon.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 
-class BaseActionButton extends ConsumerWidget {
+class BaseActionButton extends ConsumerStatefulWidget {
   const BaseActionButton({
     super.key,
     required this.label,
@@ -31,25 +33,55 @@ class BaseActionButton extends ConsumerWidget {
   final void Function()? onLongPressed;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BaseActionButton> createState() => _BaseActionButtonState();
+}
+
+class _BaseActionButtonState extends ConsumerState<BaseActionButton> {
+  int _trigger = 0;
+  bool _pressed = false;
+  @override
+  Widget build(BuildContext context) {
+    final label = widget.label;
+    final iconData = widget.iconData;
+    final maxWidth = widget.maxWidth;
+    final minWidth = widget.minWidth;
+    final iconOnly = widget.iconOnly;
+    final menuItem = widget.menuItem;
+    final onLongPressed = widget.onLongPressed;
+    final onPressed = widget.onPressed == null
+        ? null
+        : () {
+            setState(() => _trigger++);
+            widget.onPressed!();
+          };
+    final style = ref.watch(appConfigProvider.select((config) => config.theme.iconStyle));
+    Widget artwork(double size, Color? color) {
+      final symbol = safeFotoActionSymbol(iconData);
+      return symbol == null
+          ? Icon(iconData, size: size, color: color)
+          : SafeFotoIcon(
+              symbol: symbol,
+              style: style,
+              size: size,
+              color: onPressed == null ? Theme.of(context).disabledColor : color,
+              active: _pressed,
+              trigger: _trigger,
+            );
+    }
+
     final miniWidth = minWidth ?? (context.isMobile ? context.width / 4.5 : 75.0);
     final iconTheme = IconTheme.of(context);
     final iconSize = iconTheme.size ?? 24.0;
     final textColor = context.themeData.textTheme.labelLarge?.color;
 
     if (iconOnly) {
-      final iconColor = this.iconColor ?? iconTheme.color ?? context.themeData.iconTheme.color;
+      final iconColor = widget.iconColor ?? iconTheme.color ?? context.themeData.iconTheme.color;
 
-      return IconButton(
-        onPressed: onPressed,
-        onLongPress: onLongPressed,
-        icon: Icon(iconData, size: iconSize, color: iconColor),
-      );
+      return IconButton(onPressed: onPressed, onLongPress: onLongPressed, icon: artwork(iconSize, iconColor));
     }
 
     if (menuItem) {
-      final iconColor = this.iconColor;
-      final onPressed = this.onPressed;
+      final iconColor = widget.iconColor;
 
       return MenuItemButton(
         closeOnActivate: false,
@@ -57,7 +89,7 @@ class BaseActionButton extends ConsumerWidget {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-        leadingIcon: Icon(iconData, color: iconColor, size: 20),
+        leadingIcon: artwork(20, iconColor),
         onPressed: onPressed == null
             ? null
             : () {
@@ -68,11 +100,14 @@ class BaseActionButton extends ConsumerWidget {
       );
     }
 
-    final iconColor = this.iconColor ?? iconTheme.color ?? context.themeData.iconTheme.color;
+    final iconColor = widget.iconColor ?? iconTheme.color ?? context.themeData.iconTheme.color;
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: MaterialButton(
+        onHighlightChanged: (value) => setState(() => _pressed = value),
+        color: context.colorScheme.surfaceContainerHigh.withValues(alpha: 0.45),
+        elevation: 0,
         padding: const EdgeInsets.all(10),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
         textColor: textColor,
@@ -83,7 +118,7 @@ class BaseActionButton extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(iconData, size: iconSize, color: iconColor),
+            artwork(iconSize, iconColor),
             const SizedBox(height: 8),
             Text(
               label,

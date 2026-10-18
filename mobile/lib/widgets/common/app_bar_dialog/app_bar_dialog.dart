@@ -57,7 +57,7 @@ class ImmichAppBarDialog extends HookConsumerWidget {
       );
     }
 
-    buildActionButton(IconData icon, String text, Function() onTap, {Widget? trailing}) {
+    buildActionButton(IconData icon, String text, Function() onTap, {Widget? trailing, bool translate = true}) {
       return ListTile(
         dense: true,
         visualDensity: VisualDensity.standard,
@@ -65,9 +65,9 @@ class ImmichAppBarDialog extends HookConsumerWidget {
         minLeadingWidth: 40,
         leading: SizedBox(child: Icon(icon, color: theme.textTheme.labelLarge?.color?.withAlpha(250), size: 20)),
         title: Text(
-          text,
+          translate ? text.tr() : text,
           style: theme.textTheme.labelLarge?.copyWith(color: theme.textTheme.labelLarge?.color?.withAlpha(250)),
-        ).tr(),
+        ),
         onTap: onTap,
         trailing: trailing,
       );
@@ -78,14 +78,20 @@ class ImmichAppBarDialog extends HookConsumerWidget {
     }
 
     buildSafeFotoPanelButton() {
-      return buildActionButton(Icons.open_in_browser_rounded, 'Panel SafeFoto', () async {
-        final opened = await launchUrl(Uri.parse('https://panel.safefoto.pl'), mode: LaunchMode.externalApplication);
-        if (!opened && context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Nie udało się otworzyć panelu SafeFoto')));
-        }
-      }, trailing: const Icon(Icons.open_in_new_rounded, size: 18));
+      return buildActionButton(
+        Icons.open_in_browser_rounded,
+        'Panel SafeFoto',
+        () async {
+          final opened = await launchUrl(Uri.parse('https://panel.safefoto.pl'), mode: LaunchMode.externalApplication);
+          if (!opened && context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Nie udało się otworzyć panelu SafeFoto')));
+          }
+        },
+        trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+        translate: false,
+      );
     }
 
     buildFreeUpSpaceButton() {
