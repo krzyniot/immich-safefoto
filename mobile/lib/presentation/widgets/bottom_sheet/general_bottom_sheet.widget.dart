@@ -24,6 +24,7 @@ import 'package:immich_mobile/presentation/widgets/action_buttons/unstack_action
 import 'package:immich_mobile/presentation/widgets/action_buttons/upload_action_button.widget.dart';
 import 'package:immich_mobile/presentation/widgets/album/album_selector.widget.dart';
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/base_bottom_sheet.widget.dart';
+import 'package:immich_mobile/presentation/widgets/bottom_sheet/family_bulk_action.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/action.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/user_metadata.provider.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
@@ -93,16 +94,14 @@ class _GeneralBottomSheetState extends ConsumerState<GeneralBottomSheet> {
       maxChildSize: 0.85,
       shouldCloseOnMinExtent: false,
       actions: [
+        if (multiselect.hasRemote) const FamilyBulkAction(mode: 'move'),
+        if (multiselect.hasRemote) const FamilyBulkAction(mode: 'share'),
         if (multiselect.hasRemote)
           BaseActionButton(
             label: 'add_to_album'.tr(),
             iconData: Icons.photo_album_outlined,
             onPressed: () {
-              sheetController.animateTo(
-                0.72,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-              );
+              sheetController.animateTo(0.72, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
             },
           ),
         ...actions.map((action) => ActionColumnButtonWidget(action: TimelineAction(action: action))),
