@@ -98,6 +98,7 @@ export const Route = {
     `/people/${id}` + asQueryString(params),
 
   // photos
+  familyPhotos: () => '/family-photos',
   photos: (params?: { at?: string }) => '/photos' + asQueryString(params),
   viewAsset: ({ id }: { id: string }) => `/photos/${id}`,
   archive: () => '/archive',
