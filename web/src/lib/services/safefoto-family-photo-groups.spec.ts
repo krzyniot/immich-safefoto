@@ -25,6 +25,18 @@ describe('SafeFoto family photo timeline grouping', () => {
     expect(photos[0].id).toBe('old');
   });
 
+  it('orders months and photos by displayed local date even if file timestamps differ', () => {
+    const january = photo('jan', '2026-01-10T00:00:00.000Z');
+    january.fileCreatedAt = '2025-12-01T00:00:00.000Z';
+    const december = photo('dec', '2025-12-20T00:00:00.000Z');
+    december.fileCreatedAt = '2026-02-01T00:00:00.000Z';
+    const januaryOlder = photo('jan-old', '2026-01-01T00:00:00.000Z');
+    januaryOlder.fileCreatedAt = '2026-04-01T00:00:00.000Z';
+    const groups = groupFamilyPhotosByMonth([december, januaryOlder, january]);
+    expect(groups.map((group) => group.key)).toEqual(['2026-01', '2025-12']);
+    expect(groups[0].photos.map((item) => item.id)).toEqual(['jan', 'jan-old']);
+  });
+
   it('handles invalid dates without inserting a false month', () => {
     const result = groupFamilyPhotosByMonth([photo('broken', 'not-a-date')]);
     expect(result).toEqual([]);

@@ -10,7 +10,9 @@ export type FamilyPhotoMonth = {
 export const groupFamilyPhotosByMonth = (photos: FamilyPhoto[]): FamilyPhotoMonth[] => {
   const groups = new Map<string, FamilyPhotoMonth>();
 
-  for (const photo of [...photos].sort((a, b) => b.fileCreatedAt.localeCompare(a.fileCreatedAt) || b.id.localeCompare(a.id))) {
+  for (const photo of [...photos].sort(
+    (a, b) => b.localDateTime.localeCompare(a.localDateTime) || b.id.localeCompare(a.id),
+  )) {
     const date = new Date(photo.localDateTime);
     if (Number.isNaN(date.getTime())) {
       continue;
@@ -31,5 +33,5 @@ export const groupFamilyPhotosByMonth = (photos: FamilyPhoto[]): FamilyPhotoMont
     group.photos.push(photo);
   }
 
-  return [...groups.values()];
+  return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
 };

@@ -1,7 +1,11 @@
 <script lang="ts">
   import UserPageLayout from '$lib/components/layouts/UserPageLayout.svelte';
   import { authManager } from '$lib/managers/auth-manager.svelte';
-  import { fetchFamilyAlbumPhotos, fetchFamilyAlbums, type FamilyAlbum } from '$lib/services/safefoto-family-album.service';
+  import {
+    fetchFamilyAlbumPhotos,
+    fetchFamilyAlbums,
+    type FamilyAlbum,
+  } from '$lib/services/safefoto-family-album.service';
   import { groupFamilyPhotosByMonth } from '$lib/services/safefoto-family-photo-groups';
   import {
     FamilyPhotoFetchError,
@@ -10,6 +14,7 @@
   } from '$lib/services/safefoto-family-photo.service';
   import { getAssetMediaUrl } from '$lib/utils';
   import { AssetMediaSize } from '@immich/sdk';
+  import { onMount } from 'svelte';
 
   let photos = $state<FamilyPhoto[]>([]);
   let albums = $state<FamilyAlbum[]>([]);
@@ -21,6 +26,8 @@
   let selectedPhoto = $state<FamilyPhoto | null>(null);
   let mediaCacheKey = $state('');
   let mediaCacheSequence = 0;
+  let loadMoreSentinel = $state<HTMLDivElement | undefined>();
+  let supportsIntersectionObserver = $state(true);
 
   const activeUserId = $derived(authManager.authenticated ? authManager.user.id : null);
   const months = $derived(groupFamilyPhotosByMonth(photos));
@@ -62,9 +69,7 @@
     loading = true;
     const generation = ++requestGeneration;
     try {
-      const result = albumId
-        ? await fetchFamilyAlbumPhotos(albumId, page)
-        : await fetchFamilyPhotoPage(page);
+      const result = albumId ? await fetchFamilyAlbumPhotos(albumId, page) : await fetchFamilyPhotoPage(page);
       if (activeUserId !== userId || generation !== requestGeneration) {
         return;
       }
@@ -139,6 +144,36 @@
     }
   };
 
+  onMount(() => {
+    supportsIntersectionObserver = typeof IntersectionObserver !== 'undefined';
+  });
+
+  $effect(() => {
+    if (
+      !supportsIntersectionObserver ||
+      !activeUserId ||
+      !loadMoreSentinel ||
+      loading ||
+      loadingAlbums ||
+      error ||
+      nextPage === null ||
+      selectedPhoto
+    ) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          void loadMore();
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
+    observer.observe(loadMoreSentinel);
+    return () => observer.disconnect();
+  });
+
   $effect(() => {
     const current = activeUserId;
     if (loadedFor !== current) {
@@ -160,8 +195,8 @@
   <div class="mx-auto max-w-7xl px-2 pb-12">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <p class="max-w-2xl text-sm text-gray-500 dark:text-gray-300">
-        Tutaj widzisz zdjęcia świadomie udostępnione Twojej rodzinie.
-        Twoje prywatne zdjęcia pozostają w zakładce „Moje zdjęcia”.
+        Tutaj widzisz zdjęcia świadomie udostępnione Twojej rodzinie. Twoje prywatne zdjęcia pozostają w zakładce „Moje
+        zdjęcia”.
       </p>
       <button
         type="button"
@@ -205,13 +240,20 @@
     {#if years.length > 1}
       <nav aria-label="Przejdź do roku" class="mb-5 flex flex-wrap gap-3">
         {#each years as year (year)}
-          <a class="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" href={'#family-year-' + year}>{year}</a>
+          <a
+            class="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+            href={'#family-year-' + year}>{year}</a
+          >
         {/each}
       </nav>
     {/if}
 
     {#each months as month, index (month.key)}
-      <section aria-label={month.title} class="mb-9" id={index === 0 || months[index - 1].year !== month.year ? 'family-year-' + month.year : undefined}>
+      <section
+        aria-label={month.title}
+        class="mb-9"
+        id={index === 0 || months[index - 1].year !== month.year ? 'family-year-' + month.year : undefined}
+      >
         <h2 class="mb-3 text-lg capitalize">{month.title}</h2>
         <div class="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
           {#each month.photos as photo (photo.id)}
@@ -233,11 +275,16 @@
       </section>
     {/each}
 
+    <div bind:this={loadMoreSentinel} data-family-load-sentinel aria-hidden="true" class="h-px"></div>
     {#if loading || loadingAlbums}
       <p class="py-6 text-center text-sm text-gray-500" role="status">Wczytywanie zdjęć rodziny…</p>
-    {:else if nextPage !== null && activeUserId && !error}
+    {:else if nextPage !== null && activeUserId && !error && !supportsIntersectionObserver}
       <div class="flex justify-center">
-        <button type="button" onclick={() => void loadMore()} class="rounded-lg border px-5 py-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+        <button
+          type="button"
+          onclick={() => void loadMore()}
+          class="rounded-lg border px-5 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
           Pokaż starsze zdjęcia
         </button>
       </div>
