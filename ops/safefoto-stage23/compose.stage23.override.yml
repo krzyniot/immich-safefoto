@@ -1,0 +1,3 @@
+services:
+  immich-server:
+    image: safefoto-immich-family:stage23-web-20261104
