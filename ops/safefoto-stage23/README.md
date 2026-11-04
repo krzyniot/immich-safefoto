@@ -54,3 +54,12 @@ docker compose -f compose.yml -f compose.stage16.override.yml up -d --no-deps --
 4. Current gallery is a page/grid with month/year jump and manual pagination, **not yet the fully native virtualized TimelineManager**.
 5. GitHub contains source+recipe, not photo/media or database backups. A 2026-11-04 logical database dump exists locally, but media are intentionally not backed up per owner's test-only decision.
 6. Rebuild depends on the older Stage16 base image. It is present locally, but not yet archived to a remote image registry. A server-total-loss recovery would require rebuilding that base or securing an image artifact separately.
+
+## Authenticated Chromium smoke (added 2026-11-04)
+
+```sh
+SAFEFOTO_TEST_LOGIN_FILE=/srv/tests/safefoto/immich-real/admin.credentials \
+  /srv/tests/ui-tools/.venv/bin/python ops/safefoto-stage23/browser_smoke.py
+```
+
+Do not commit or output credentials. For results and the read-only schema drift audit see `SMOKE_AND_SCHEMA_20261104.md`.
