@@ -1,4 +1,5 @@
 import type { LoginResponseDto } from '@immich/sdk';
+import { assertSafeFotoE2EDatabase } from 'src/safefoto-e2e-safety';
 import { createUserDto } from 'src/fixtures';
 import { app, utils } from 'src/utils';
 import request from 'supertest';
@@ -17,9 +18,7 @@ describe('SafeFoto family HTTP media access revocation', () => {
   let assetId: string;
 
   beforeAll(async () => {
-    if (new URL(app).port !== '2285') {
-      throw new Error('Refusing SafeFoto E2E database reset outside the dedicated port 2285');
-    }
+    assertSafeFotoE2EDatabase();
 
     await utils.resetDatabase();
     admin = await utils.adminSetup({ onboarding: false });
