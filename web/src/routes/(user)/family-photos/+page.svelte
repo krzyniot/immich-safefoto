@@ -194,10 +194,6 @@
 <UserPageLayout title="Zdjęcia rodziny">
   <div class="mx-auto max-w-7xl px-2 pb-12">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <p class="max-w-2xl text-sm text-gray-500 dark:text-gray-300">
-        Tutaj widzisz zdjęcia świadomie udostępnione Twojej rodzinie. Twoje prywatne zdjęcia pozostają w zakładce „Moje
-        zdjęcia”.
-      </p>
       <button
         type="button"
         onclick={() => void refresh()}
