@@ -19,6 +19,8 @@
   let loadingAlbums = $state(false);
   let error = $state('');
   let selectedPhoto = $state<FamilyPhoto | null>(null);
+  let mediaCacheKey = $state('');
+  let mediaCacheSequence = 0;
 
   const activeUserId = $derived(authManager.authenticated ? authManager.user.id : null);
   const months = $derived(groupFamilyPhotosByMonth(photos));
@@ -83,6 +85,9 @@
   const refresh = async () => {
     const userId = activeUserId;
     ++requestGeneration;
+    // Revalidate thumbnails after each family membership check. Do not reuse
+    // yesterday's cached media response when access has changed.
+    mediaCacheKey = `${Date.now()}-${++mediaCacheSequence}`;
     clearPhotos();
     albums = [];
     if (!userId) {
@@ -217,7 +222,7 @@
               onclick={() => (selectedPhoto = photo)}
             >
               <img
-                src={getAssetMediaUrl({ id: photo.id, size: AssetMediaSize.Thumbnail })}
+                src={getAssetMediaUrl({ id: photo.id, size: AssetMediaSize.Thumbnail, cacheKey: mediaCacheKey })}
                 alt="Zdjęcie rodzinne"
                 loading="lazy"
                 class="size-full object-cover"
@@ -251,7 +256,7 @@
       Zamknij
     </button>
     <img
-      src={getAssetMediaUrl({ id: selectedPhoto.id, size: AssetMediaSize.Preview })}
+      src={getAssetMediaUrl({ id: selectedPhoto.id, size: AssetMediaSize.Preview, cacheKey: mediaCacheKey })}
       alt="Podgląd zdjęcia rodzinnego"
       class="max-h-[85vh] max-w-full object-contain"
     />
