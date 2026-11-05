@@ -19,6 +19,8 @@ import 'package:immich_mobile/infrastructure/repositories/store.repository.dart'
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/family_bulk_action.widget.dart';
 import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/family_sync.provider.dart';
+import 'package:immich_mobile/domain/models/config/app_config.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 
 import '../fixtures/user.stub.dart';
@@ -93,6 +95,7 @@ void main() {
       ProviderScope(
         overrides: [
           storeServiceProvider.overrideWithValue(store),
+          appConfigProvider.overrideWithValue(const AppConfig()),
           familyPrivateVisibilityProvider.overrideWithValue(FamilyPrivateVisibilityService(store, db: db)),
           familySyncCacheServiceProvider.overrideWithValue(service),
           familySyncApiRepositoryProvider.overrideWithValue(
@@ -113,7 +116,7 @@ void main() {
 
   testWidgets('bulk move publishes only owned remote images and hides personal timeline', (tester) async {
     await showButton(tester, UserStub.admin.id, 'move');
-    await tester.tap(find.text('Przenieś do rodziny'));
+    await tester.tap(find.text('Do rodziny'));
     await tester.pumpAndSettle();
     expect(find.text('Wybierz tylko własne zdjęcia zapisane w SafeFoto.'), findsNothing);
     expect(find.text('Błąd połączenia. Sprawdź galerię przed ponowną próbą.'), findsNothing);
@@ -125,7 +128,7 @@ void main() {
 
   testWidgets('bulk share retains personal timeline', (tester) async {
     await showButton(tester, UserStub.admin.id, 'share');
-    await tester.tap(find.text('Udostępnij rodzinie'));
+    await tester.tap(find.text('Dla rodziny'));
     await tester.pumpAndSettle();
     expect(find.text('Wybierz tylko własne zdjęcia zapisane w SafeFoto.'), findsNothing);
     expect(find.text('Błąd połączenia. Sprawdź galerię przed ponowną próbą.'), findsNothing);
@@ -136,7 +139,7 @@ void main() {
 
   testWidgets('bulk action refuses images owned by someone else', (tester) async {
     await showButton(tester, 'different-owner', 'move');
-    await tester.tap(find.text('Przenieś do rodziny'));
+    await tester.tap(find.text('Do rodziny'));
     await tester.pumpAndSettle();
     expect(requests, 0);
     expect(cache.data, isNotNull);
