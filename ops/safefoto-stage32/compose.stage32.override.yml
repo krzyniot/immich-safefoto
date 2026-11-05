@@ -1,0 +1,3 @@
+services:
+  immich-server:
+    image: safefoto-immich-family:stage32-virtual-gallery-20261105

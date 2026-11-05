@@ -7,6 +7,7 @@
     type FamilyAlbum,
   } from '$lib/services/safefoto-family-album.service';
   import { groupFamilyPhotosByMonth } from '$lib/services/safefoto-family-photo-groups';
+  import { buildFamilyVirtualLayout, getFamilyVirtualWindow } from '$lib/services/safefoto-family-photo-virtualization';
   import {
     FamilyPhotoFetchError,
     fetchFamilyPhotoPage,
@@ -28,10 +29,43 @@
   let mediaCacheSequence = 0;
   let loadMoreSentinel = $state<HTMLDivElement | undefined>();
   let supportsIntersectionObserver = $state(true);
+  let galleryElement = $state<HTMLDivElement>();
+  let galleryWidth = $state(1100);
+  let viewportWidth = $state(1440);
+  let viewportHeight = $state(900);
+  let scrollPosition = $state(0);
+  let galleryPosition = $state(0);
 
   const activeUserId = $derived(authManager.authenticated ? authManager.user.id : null);
   const months = $derived(groupFamilyPhotosByMonth(photos));
   const years = $derived([...new Set(months.map((month) => month.year))]);
+  const virtualLayout = $derived(buildFamilyVirtualLayout(months, galleryWidth, viewportWidth));
+  const virtualWindow = $derived(
+    getFamilyVirtualWindow(virtualLayout, Math.max(0, scrollPosition - galleryPosition), viewportHeight),
+  );
+  const currentMonthTitle = $derived.by(() => {
+    const position = Math.max(0, scrollPosition - galleryPosition);
+    let title = '';
+    for (const row of virtualLayout.rows) {
+      if (row.offset > position) {
+        break;
+      }
+      if (row.kind === 'month') {
+        title = row.title;
+      }
+    }
+    return title;
+  });
+
+  const jumpToYear = (year: number) => {
+    const row = virtualLayout.rows.find((item) => item.kind === 'month' && item.year === year);
+    if (row && galleryElement) {
+      window.scrollTo({
+        top: galleryElement.getBoundingClientRect().top + window.scrollY + row.offset,
+        behavior: 'smooth',
+      });
+    }
+  };
   const selectedPhotoId = $derived(selectedPhoto?.id);
   const selectedPhotoIndex = $derived(selectedPhotoId ? photos.findIndex((photo) => photo.id === selectedPhotoId) : -1);
 
@@ -177,6 +211,37 @@
 
   onMount(() => {
     supportsIntersectionObserver = typeof IntersectionObserver !== 'undefined';
+    let frame = 0;
+    const updateViewport = () => {
+      frame = 0;
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+      scrollPosition = window.scrollY;
+      if (galleryElement) {
+        galleryWidth = galleryElement.clientWidth;
+        galleryPosition = galleryElement.getBoundingClientRect().top + window.scrollY;
+      }
+    };
+    const onScroll = () => {
+      if (!frame) {
+        frame = globalThis.requestAnimationFrame(updateViewport);
+      }
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onScroll);
+    if (galleryElement) {
+      observer?.observe(galleryElement);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    updateViewport();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      observer?.disconnect();
+      if (frame) {
+        globalThis.cancelAnimationFrame(frame);
+      }
+    };
   });
 
   $effect(() => {
@@ -267,45 +332,61 @@
     {#if years.length > 1}
       <nav aria-label="Przejdź do roku" class="mb-5 flex flex-wrap gap-3">
         {#each years as year (year)}
-          <a
+          <button
+            type="button"
             class="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-            href={'#family-year-' + year}>{year}</a
+            onclick={() => jumpToYear(year)}>{year}</button
           >
         {/each}
       </nav>
     {/if}
 
-    {#each months as month, index (month.key)}
-      <section
-        aria-label={month.title}
-        class="mb-8"
-        id={index === 0 || months[index - 1].year !== month.year ? 'family-year-' + month.year : undefined}
-      >
-        <h2
-          class="sticky top-0 z-10 mb-3 border-b border-gray-200 bg-white/95 py-2 text-lg capitalize backdrop-blur-sm dark:border-gray-800 dark:bg-black/95"
-        >
-          {month.title}
-        </h2>
-        <div class="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
-          {#each month.photos as photo (photo.id)}
-            <button
-              type="button"
-              class="group aspect-square overflow-hidden rounded-sm bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-gray-800"
-              aria-label={'Pokaż zdjęcie z ' + new Date(photo.localDateTime).toLocaleDateString('pl-PL')}
-              onclick={() => (selectedPhoto = photo)}
-            >
-              <img
-                src={getAssetMediaUrl({ id: photo.id, size: AssetMediaSize.Thumbnail, cacheKey: mediaCacheKey })}
-                alt="Zdjęcie rodzinne"
-                loading="lazy"
-                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none"
-              />
-            </button>
-          {/each}
+    <div bind:this={galleryElement} data-family-virtual-gallery>
+      {#if currentMonthTitle && scrollPosition > galleryPosition + 52 && scrollPosition < galleryPosition + virtualLayout.totalHeight}
+        <div class="pointer-events-none sticky top-0 z-20 h-0" aria-hidden="true">
+          <div
+            class="border-b border-gray-200 bg-white/95 px-1 py-2 text-lg capitalize backdrop-blur-sm dark:border-gray-800 dark:bg-black/95"
+          >
+            {currentMonthTitle}
+          </div>
         </div>
-      </section>
-    {/each}
-
+      {/if}
+      <div data-family-virtual-top style:height={`${virtualWindow.top}px`} aria-hidden="true"></div>
+      {#each virtualWindow.rows as row (row.key)}
+        {#if row.kind === 'month'}
+          <div
+            aria-label={row.title}
+            class="flex items-center border-b border-gray-200 bg-white/95 dark:border-gray-800 dark:bg-black/95"
+            style:height={`${row.height}px`}
+          >
+            <h2 class="text-lg capitalize">{row.title}</h2>
+          </div>
+        {:else if row.kind === 'photos'}
+          <div style:height={`${row.height}px`}>
+            <div class="grid gap-1" style:grid-template-columns={`repeat(${virtualLayout.columns}, minmax(0, 1fr))`}>
+              {#each row.photos as photo (photo.id)}
+                <button
+                  type="button"
+                  class="group aspect-square overflow-hidden rounded-sm bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-gray-800"
+                  aria-label={'Pokaż zdjęcie z ' + new Date(photo.localDateTime).toLocaleDateString('pl-PL')}
+                  onclick={() => (selectedPhoto = photo)}
+                >
+                  <img
+                    src={getAssetMediaUrl({ id: photo.id, size: AssetMediaSize.Thumbnail, cacheKey: mediaCacheKey })}
+                    alt="Zdjęcie rodzinne"
+                    loading="lazy"
+                    class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none"
+                  />
+                </button>
+              {/each}
+            </div>
+          </div>
+        {:else}
+          <div style:height={`${row.height}px`} aria-hidden="true"></div>
+        {/if}
+      {/each}
+      <div data-family-virtual-bottom style:height={`${virtualWindow.bottom}px`} aria-hidden="true"></div>
+    </div>
     <div bind:this={loadMoreSentinel} data-family-load-sentinel aria-hidden="true" class="h-px"></div>
     {#if loading || loadingAlbums}
       <p class="py-6 text-center text-sm text-gray-500" role="status">Wczytywanie zdjęć rodziny…</p>
