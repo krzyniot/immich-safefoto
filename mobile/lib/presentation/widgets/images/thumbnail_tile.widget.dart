@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -11,6 +13,7 @@ import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart'
 import 'package:immich_mobile/providers/backup/asset_upload_progress.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/timeline/multiselect.provider.dart';
+import 'package:immich_mobile/presentation/widgets/images/backup_status_indicator.dart';
 
 class ThumbnailTile extends ConsumerStatefulWidget {
   const ThumbnailTile(
@@ -39,9 +42,43 @@ class ThumbnailTile extends ConsumerStatefulWidget {
 class _ThumbnailTileState extends ConsumerState<ThumbnailTile> {
   bool _hideIndicators = false;
   bool _showSelectionContainer = false;
+  Timer? _backupIndicatorTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleIndicatorExpiry();
+  }
+
+  @override
+  void didUpdateWidget(covariant ThumbnailTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.asset != widget.asset) {
+      _scheduleIndicatorExpiry();
+    }
+  }
+
+  void _scheduleIndicatorExpiry() {
+    _backupIndicatorTimer?.cancel();
+    _backupIndicatorTimer = null;
+    final asset = widget.asset;
+    if (asset is! RemoteAsset) {
+      return;
+    }
+    final remaining = backupConfirmationRemaining(asset.uploadedAt, DateTime.now());
+    if (remaining == null) {
+      return;
+    }
+    _backupIndicatorTimer = Timer(remaining, () {
+      if (mounted) {
+        setState(() => _backupIndicatorTimer = null);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _backupIndicatorTimer?.cancel();
     super.dispose();
   }
 
@@ -157,28 +194,22 @@ class _ThumbnailTileState extends ConsumerState<ThumbnailTile> {
                   AnimatedOpacity(
                     opacity: _hideIndicators ? 0.0 : 1.0,
                     duration: Durations.short4,
-                    child: switch (asset.storage) {
-                      AssetState.local => const Align(
+                    child: switch (backupIndicatorForAsset(asset, DateTime.now())) {
+                      BackupIndicator.notBackedUp => const Align(
                         alignment: Alignment.bottomRight,
                         child: Padding(
                           padding: EdgeInsets.only(right: 10.0, bottom: 6.0),
                           child: _TileOverlayIcon(Icons.cloud_off_outlined),
                         ),
                       ),
-                      AssetState.remote => const Align(
-                        alignment: Alignment.bottomRight,
-                        child: Padding(
-                          padding: EdgeInsets.only(right: 10.0, bottom: 6.0),
-                          child: _TileOverlayIcon(Icons.cloud_outlined),
-                        ),
-                      ),
-                      AssetState.merged => const Align(
+                      BackupIndicator.recentlyBackedUp => const Align(
                         alignment: Alignment.bottomRight,
                         child: Padding(
                           padding: EdgeInsets.only(right: 10.0, bottom: 6.0),
                           child: _TileOverlayIcon(Icons.cloud_done_outlined),
                         ),
                       ),
+                      BackupIndicator.none => const SizedBox.shrink(),
                     },
                   ),
 
