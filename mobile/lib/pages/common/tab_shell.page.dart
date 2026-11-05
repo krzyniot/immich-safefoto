@@ -241,7 +241,10 @@ class _BottomNavigationBarState extends ConsumerState<_BottomNavigationBar> {
       destinations: [
         for (var i = 0; i < widget.destinations.length; i++)
           NavigationDestination(
-            label: widget.destinations[i].label,
+            // Concise labels avoid truncated Polish text on narrow phones;
+            // full localized titles remain available in the navigation rail
+            // and destination page headings.
+            label: const ['Moje', 'Rodzina', 'Szukaj', 'Albumy', 'Więcej'][i],
             enabled: widget.destinations[i].enabled,
             icon: SafeFotoIcon(
               symbol: SafeFotoSymbol.values[i],
