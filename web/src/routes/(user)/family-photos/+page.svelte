@@ -32,6 +32,37 @@
   const activeUserId = $derived(authManager.authenticated ? authManager.user.id : null);
   const months = $derived(groupFamilyPhotosByMonth(photos));
   const years = $derived([...new Set(months.map((month) => month.year))]);
+  const selectedPhotoId = $derived(selectedPhoto?.id);
+  const selectedPhotoIndex = $derived(selectedPhotoId ? photos.findIndex((photo) => photo.id === selectedPhotoId) : -1);
+
+  const navigatePreview = (direction: -1 | 1) => {
+    const target = selectedPhotoIndex + direction;
+    if (target >= 0 && target < photos.length) {
+      selectedPhoto = photos[target];
+    }
+  };
+
+  const onPreviewKeydown = (event: KeyboardEvent) => {
+    if (!selectedPhoto) {
+      return;
+    }
+    switch (event.key) {
+      case 'Escape': {
+        selectedPhoto = null;
+        break;
+      }
+      case 'ArrowRight': {
+        event.preventDefault();
+        navigatePreview(1);
+        break;
+      }
+      case 'ArrowLeft': {
+        event.preventDefault();
+        navigatePreview(-1);
+        break;
+      }
+    }
+  };
   let loadedFor: string | null = null;
   let requestGeneration = 0;
 
@@ -189,7 +220,7 @@
   });
 </script>
 
-<svelte:window onfocus={recheckOnFocus} />
+<svelte:window onfocus={recheckOnFocus} onkeydown={onPreviewKeydown} />
 
 <UserPageLayout title="Zdjęcia rodziny">
   <div class="mx-auto max-w-7xl px-2 pb-12">
@@ -247,15 +278,19 @@
     {#each months as month, index (month.key)}
       <section
         aria-label={month.title}
-        class="mb-9"
+        class="mb-8"
         id={index === 0 || months[index - 1].year !== month.year ? 'family-year-' + month.year : undefined}
       >
-        <h2 class="mb-3 text-lg capitalize">{month.title}</h2>
-        <div class="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
+        <h2
+          class="sticky top-0 z-10 mb-3 border-b border-gray-200 bg-white/95 py-2 text-lg capitalize backdrop-blur-sm dark:border-gray-800 dark:bg-black/95"
+        >
+          {month.title}
+        </h2>
+        <div class="grid grid-cols-3 gap-1 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
           {#each month.photos as photo (photo.id)}
             <button
               type="button"
-              class="aspect-square overflow-hidden rounded-md bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-gray-800"
+              class="group aspect-square overflow-hidden rounded-sm bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-gray-800"
               aria-label={'Pokaż zdjęcie z ' + new Date(photo.localDateTime).toLocaleDateString('pl-PL')}
               onclick={() => (selectedPhoto = photo)}
             >
@@ -263,7 +298,7 @@
                 src={getAssetMediaUrl({ id: photo.id, size: AssetMediaSize.Thumbnail, cacheKey: mediaCacheKey })}
                 alt="Zdjęcie rodzinne"
                 loading="lazy"
-                class="size-full object-cover"
+                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none"
               />
             </button>
           {/each}
@@ -289,19 +324,46 @@
 </UserPageLayout>
 
 {#if selectedPhoto && activeUserId}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3" role="presentation">
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 px-2 py-14 sm:px-14"
+    role="presentation"
+    onclick={(event) => {
+      if (event.target === event.currentTarget) {
+        selectedPhoto = null;
+      }
+    }}
+  >
+    <div class="absolute top-3 right-4 flex items-center gap-4 text-white">
+      <span class="text-sm tabular-nums" aria-live="polite">
+        {selectedPhotoIndex + 1} / {photos.length}
+      </span>
+      <button
+        type="button"
+        aria-label="Zamknij podgląd zdjęcia"
+        class="rounded-full bg-white/10 px-3 py-2 text-xl hover:bg-white/20"
+        onclick={() => (selectedPhoto = null)}>×</button
+      >
+    </div>
     <button
       type="button"
-      aria-label="Zamknij podgląd zdjęcia"
-      class="absolute top-4 right-4 rounded-lg bg-black/60 px-4 py-2 text-white"
-      onclick={() => (selectedPhoto = null)}
+      aria-label="Poprzednie zdjęcie rodzinne"
+      disabled={selectedPhotoIndex <= 0}
+      onclick={() => navigatePreview(-1)}
+      class="absolute left-2 z-10 rounded-full bg-black/40 p-3 text-2xl text-white hover:bg-white/15 disabled:invisible sm:left-4"
+      >‹</button
     >
-      Zamknij
-    </button>
     <img
       src={getAssetMediaUrl({ id: selectedPhoto.id, size: AssetMediaSize.Preview, cacheKey: mediaCacheKey })}
       alt="Podgląd zdjęcia rodzinnego"
-      class="max-h-[85vh] max-w-full object-contain"
+      class="max-h-full max-w-full object-contain"
     />
+    <button
+      type="button"
+      aria-label="Następne zdjęcie rodzinne"
+      disabled={selectedPhotoIndex < 0 || selectedPhotoIndex >= photos.length - 1}
+      onclick={() => navigatePreview(1)}
+      class="absolute right-2 z-10 rounded-full bg-black/40 p-3 text-2xl text-white hover:bg-white/15 disabled:invisible sm:right-4"
+      >›</button
+    >
   </div>
 {/if}
